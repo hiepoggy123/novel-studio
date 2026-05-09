@@ -1,5 +1,6 @@
 "use client";
 
+import { GithubStarsButton } from "@/components/ui/github-stars/github-stars-button";
 import { Progress } from "@/components/ui/progress";
 import {
   Sidebar,
@@ -200,7 +201,12 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <DictLoadingFooter />
+      <SidebarFooter className="mt-auto border-t px-3 py-2 space-y-2">
+        <GithubStarsButton href="https://github.com/ldblckrs-258/novel-studio">
+          Star Github Repo
+        </GithubStarsButton>
+        <DictLoadingFooter />
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );
@@ -219,28 +225,24 @@ function DictLoadingFooter() {
 
   if (phase === "idle" || phase === "ready") return null;
 
-  return (
-    <SidebarFooter className="border-t px-3 py-2">
-      {phase === "error" ? (
-        <p className="text-xs text-red-500">Lỗi tải từ điển</p>
-      ) : (
-        <div className="space-y-1.5">
-          {phase === "loading" && (
-            <Progress value={loadingPercent} className="h-1.5" />
-          )}
-          <div className="flex items-center gap-2">
-            <LoaderIcon className="size-3.5 shrink-0 animate-spin text-blue-500" />
-            <span className="text-xs text-sidebar-foreground/70">
-              {phase === "loading"
-                ? `Đang tải ${SOURCE_LABELS[loadingSource] ?? loadingSource}...`
-                : "Đang khởi tạo engine..."}
-            </span>
-            <span className="ml-auto text-xs text-sidebar-foreground/50">
-              {phase === "loading" ? `${loadingPercent}%` : null}
-            </span>
-          </div>
-        </div>
+  return phase === "error" ? (
+    <p className="text-xs text-red-500">Lỗi tải từ điển</p>
+  ) : (
+    <div className="space-y-1.5">
+      {phase === "loading" && (
+        <Progress value={loadingPercent} className="h-1.5" />
       )}
-    </SidebarFooter>
+      <div className="flex items-center gap-2">
+        <LoaderIcon className="size-3.5 shrink-0 animate-spin text-blue-500" />
+        <span className="text-xs text-sidebar-foreground/70">
+          {phase === "loading"
+            ? `Đang tải ${SOURCE_LABELS[loadingSource] ?? loadingSource}...`
+            : "Đang khởi tạo engine..."}
+        </span>
+        <span className="ml-auto text-xs text-sidebar-foreground/50">
+          {phase === "loading" ? `${loadingPercent}%` : null}
+        </span>
+      </div>
+    </div>
   );
 }

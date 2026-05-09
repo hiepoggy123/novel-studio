@@ -1,0 +1,55 @@
+.github-stars-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes border-translate {
+  0% {
+    transform: translate(0%, 0%);
+  }
+  100% {
+    transform: translate(5%, -5%);
+  }
+}
+
+@keyframes border-glow-translate {
+  0% {
+    transform: translate(0%, 0%);
+  }
+  100% {
+    transform: translate(-10%, 5%);
+  }
+}
+
+@keyframes border-glow-scale {
+  0% {
+    transform: translateX(-50%) scale(0.8);
+  }
+  100% {
+    transform: translateX(-50%) scale(1.2);
+  }
+}
+
+@keyframes star-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes star-shine {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.3);
+  }
+}

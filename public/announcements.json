@@ -4,9 +4,9 @@
       "id": "version-0.11.1-07.04.2026",
       "enabled": true,
       "type": "info",
-      "content": "v0.11.1 - Trang chủ mới, Scrape truyện từ UUKansu, Cài đặt AI & Cải thiện Auto-Write. [Xem chi tiết](/changelog)",
-      "bgColor": "bg-orange-500/10 dark:bg-orange-500/15",
-      "textColor": "text-orange-700 dark:text-orange-300"
+      "content": "**Novel Studio** chính thức mã nguồn mở! Tham khảo và đóng góp tại [Github Repo](https://github.com/ldblckrs-258/novel-studio).",
+      "bgColor": "bg-sky-500/10 dark:bg-sky-500/15",
+      "textColor": "text-sky-700 dark:text-sky-300"
     }
   ]
 }
