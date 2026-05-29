@@ -39,18 +39,17 @@ export async function deleteNovel(id: string) {
     "rw",
     [
       db.novels, db.chapters, db.scenes, db.characters, db.notes,
-      db.plotArcs, db.chapterPlans, db.characterArcs,
+      db.plotArcs, db.chapterPlans,
       db.writingSettings, db.writingSessions, db.writingStepResults,
+      db.storyStates,
     ],
     async () => {
       await db.scenes.where("novelId").equals(id).delete();
       await db.chapters.where("novelId").equals(id).delete();
       await db.characters.where("novelId").equals(id).delete();
       await db.notes.where("novelId").equals(id).delete();
-      // Writing pipeline tables
       await db.plotArcs.where("novelId").equals(id).delete();
       await db.chapterPlans.where("novelId").equals(id).delete();
-      await db.characterArcs.where("novelId").equals(id).delete();
       await db.writingSettings.delete(id);
       const sessions = await db.writingSessions
         .where("novelId")
@@ -60,6 +59,7 @@ export async function deleteNovel(id: string) {
         await db.writingStepResults.where("sessionId").equals(s.id).delete();
       }
       await db.writingSessions.where("novelId").equals(id).delete();
+      await db.storyStates.delete(id);
       await db.novels.delete(id);
     },
   );

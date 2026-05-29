@@ -131,6 +131,29 @@ export async function generateStructured<T>({
       }
     }
 
+    // Retry without tools: some providers (local/openai-compatible servers)
+    // reject forced tool-calling with a 400. Ask for raw JSON instead and
+    // embed the schema so the model knows the expected shape.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const schemaJson = (schema as any)?.jsonSchema;
+      const schemaHint = schemaJson
+        ? `\n\nSchema:\n${JSON.stringify(schemaJson)}`
+        : "";
+      const retry = await generateText({
+        model,
+        system,
+        prompt: `${prompt}\n\nTrả về DUY NHẤT một đối tượng JSON hợp lệ theo schema dưới đây. Không markdown, không giải thích.${schemaHint}`,
+        abortSignal,
+      });
+      if (retry.text?.trim()) {
+        const json = extractJson(retry.text);
+        return { object: JSON.parse(json) as T };
+      }
+    } catch {
+      // Retry failed — re-throw the original tool-calling error below.
+    }
+
     throw err;
   }
 

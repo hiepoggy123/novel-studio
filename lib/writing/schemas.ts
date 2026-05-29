@@ -190,7 +190,7 @@ export const reviewOutputSchema = jsonSchema<ReviewAgentOutput>({
         properties: {
           type: {
             type: "string",
-            enum: ["character", "plot", "tone", "world-rules"],
+            enum: ["character", "plot", "tone", "world-rules", "pacing", "pov", "dialogue"],
             description: "Loại vấn đề",
           },
           severity: {

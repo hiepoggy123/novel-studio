@@ -46,9 +46,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ExportNovelDialog } from "@/components/novel/export-novel-dialog";
 import { type Novel } from "@/lib/db";
 import { deleteNovel, useNovels } from "@/lib/hooks";
-import { downloadNovelJson, exportNovel, importNovel } from "@/lib/novel-io";
 import {
   BookOpenIcon,
   DownloadIcon,
@@ -58,11 +58,10 @@ import {
   PlusIcon,
   SearchIcon,
   Trash2Icon,
-  UploadIcon,
   XIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 type SortField = "updatedAt" | "createdAt" | "title";
@@ -110,7 +109,6 @@ function formatDate(date: Date) {
 export default function LibraryPage() {
   const novels = useNovels();
   const router = useRouter();
-  const importInputRef = useRef<HTMLInputElement>(null);
 
   const [search, setSearch] = useState("");
   const [sort, setSort] =
@@ -122,6 +120,7 @@ export default function LibraryPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Novel | null>(null);
   const [editTarget, setEditTarget] = useState<Novel | null>(null);
+  const [exportTarget, setExportTarget] = useState<Novel | null>(null);
 
   const genres = useMemo(() => {
     if (!novels) return [];
@@ -176,14 +175,8 @@ export default function LibraryPage() {
     setPage(1);
   };
 
-  const handleExport = useCallback(async (novel: Novel) => {
-    try {
-      const data = await exportNovel(novel.id);
-      downloadNovelJson(data);
-      toast.success(`Đã xuất "${novel.title}"`);
-    } catch {
-      toast.error("Xuất tiểu thuyết thất bại.");
-    }
+  const handleExport = useCallback((novel: Novel) => {
+    setExportTarget(novel);
   }, []);
 
   const handleDelete = useCallback(async () => {
@@ -197,24 +190,6 @@ export default function LibraryPage() {
       setDeleteTarget(null);
     }
   }, [deleteTarget]);
-
-  const handleImport = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      // Reset so the same file can be re-selected
-      e.target.value = "";
-      try {
-        await importNovel(file);
-        toast.success("Đã nhập tiểu thuyết thành công!");
-      } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : "Nhập tiểu thuyết thất bại.",
-        );
-      }
-    },
-    [],
-  );
 
   // Loading state
   if (novels === undefined) {
@@ -257,21 +232,6 @@ export default function LibraryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <input
-            ref={importInputRef}
-            type="file"
-            accept=".json"
-            className="hidden"
-            onChange={handleImport}
-          />
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => importInputRef.current?.click()}
-          >
-            <UploadIcon className="size-4" />
-            Nhập sách
-          </Button>
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <PlusIcon className="size-4" />
             Tạo mới
@@ -638,6 +598,12 @@ export default function LibraryPage() {
           novel={editTarget}
         />
       )}
+
+      <ExportNovelDialog
+        novel={exportTarget}
+        open={!!exportTarget}
+        onOpenChange={(open) => !open && setExportTarget(null)}
+      />
     </main>
   );
 }

@@ -16,7 +16,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import type { Character } from "@/lib/db";
 import { createCharacter, updateCharacter } from "@/lib/hooks";
+import {
+  extractMarkerBlock,
+  mergeMarkerBlock,
+  stripMarkerBlock,
+} from "@/lib/writing/state/entity-sync";
 import { ImagePicker } from "@/components/ui/image-picker";
+import { CharacterEnhanceControl } from "./character-enhance-control";
 
 type CharacterFields = Omit<
   Character,
@@ -63,6 +69,21 @@ export function CharacterEditDialog({
 
   const set = (key: keyof CharacterFields, value: string) =>
     setFields((prev) => ({ ...prev, [key]: value }));
+
+  const applyEnhancement = (incoming: Partial<Character>) => {
+    const defined = Object.fromEntries(
+      Object.entries(incoming).filter(([, v]) => v !== undefined && v !== ""),
+    ) as Partial<CharacterFields>;
+    setFields((prev) => {
+      const next = { ...prev, ...defined };
+      if (defined.characterArc !== undefined) {
+        const existingBlock = extractMarkerBlock(prev.characterArc);
+        const aiHuman = stripMarkerBlock(defined.characterArc);
+        next.characterArc = mergeMarkerBlock(aiHuman, existingBlock);
+      }
+      return next;
+    });
+  };
 
   const handleSave = async () => {
     if (!fields.name.trim()) {
@@ -120,6 +141,13 @@ export function CharacterEditDialog({
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] -mr-4">
           <div className="space-y-3 pr-4">
+            {isEditing && (
+              <CharacterEnhanceControl
+                novelId={novelId}
+                charId={character.id}
+                onApplyAction={applyEnhancement}
+              />
+            )}
             <div className="flex gap-2">
               <div>
                 <Label className="text-xs">Ảnh đại diện</Label>

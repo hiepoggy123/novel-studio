@@ -187,6 +187,7 @@ export interface SmartWriterPromptParams {
   characterNameList: string;
   contextSummary: string;
   directionsBlock: string;
+  intentBlock: string;
   synopsis: string;
   outlineText: string;
   totalWordCountTarget: number;
@@ -197,6 +198,8 @@ export function buildSmartWriterUserPrompt(p: SmartWriterPromptParams): string {
   const directionsTag = p.directionsBlock
     ? `\n<selected_directions constraint="bắt buộc tuân thủ">\n${p.directionsBlock}\n</selected_directions>\n`
     : "";
+
+  const intentTag = p.intentBlock ? `\n${p.intentBlock}\n` : "";
 
   return `<chapter title="${p.chapterTitle}" order="${p.chapterOrder}">
 
@@ -212,7 +215,7 @@ ${p.characterNameList}
 <context_summary note="bootstrap — có thể thiếu chi tiết; dùng công cụ để bổ sung">
 ${p.contextSummary}
 </context_summary>
-${directionsTag}
+${intentTag}${directionsTag}
 <chapter_synopsis>
 ${p.synopsis}
 </chapter_synopsis>
@@ -235,16 +238,120 @@ export const SMART_WRITER_TOOL_LIMIT_MESSAGE =
   "Bạn đã đạt giới hạn số lần gọi công cụ. Dựa trên mọi thông tin đã có, hãy viết toàn bộ nội dung chương truyện ngay bây giờ: văn xuôi tiếng Việt, không markdown, bám giàn ý và hướng đi.";
 
 /** Get the default prompt for a writing agent role */
+export const DEFAULT_OBSERVE_PROMPT = `<role>
+Bạn là chuyên gia phân tích diễn biến truyện. Đọc nội dung chương và trích xuất chính xác các thay đổi trạng thái.
+</role>
+
+<task>
+Phân tích chương và tạo StateDelta: cập nhật sự thật thế giới, tiến trình mốc cốt truyện, trạng thái nhân vật, và sự thật bất biến mới.
+Chỉ ghi nhận những gì thực sự xảy ra trong chương. Không suy diễn ngoài văn bản.
+</task>
+
+<output_format>Trả về DUY NHẤT JSON hợp lệ theo schema được yêu cầu. KHÔNG bọc trong khối mã markdown, KHÔNG dùng XML tag, KHÔNG thêm văn bản giải thích ngoài JSON.</output_format>`;
+
+export const DEFAULT_PLANNER_PROMPT = `<role>
+Bạn là nhà chiến lược tiểu thuyết. Dựa trên trạng thái câu chuyện đã xác nhận, xác định ý định chương và đề xuất hướng đi.
+</role>
+
+<task>
+Từ snapshot trạng thái và hook đang mở, xác định:
+1. intent: mục tiêu chương, ràng buộc, phong cách, hook cần xử lý (hookRefs = id PlotArc/PlotPoint).
+2. directions: 3–5 hướng đi đa dạng, mỗi hướng nhất quán với snapshot.
+</task>
+
+<intent_fields>
+  <field name="goal">Mục tiêu chương: 1–2 câu súc tích, cụ thể.</field>
+  <field name="mustKeep">Tối đa 5 yếu tố bắt buộc giữ (tên, trạng thái, sự kiện đã cam kết).</field>
+  <field name="mustAvoid">Tối đa 5 điều cấm (mâu thuẫn, lặp lại, sai logic đã xác nhận).</field>
+  <field name="styleEmphasis">Tối đa 5 yêu cầu phong cách/nhịp điệu phù hợp nội dung chương.</field>
+  <field name="hookRefs">Tối đa 5 id PlotArc hoặc PlotPoint cần đề cập hoặc giải quyết.</field>
+</intent_fields>
+
+<output_rules>
+  <rule>Không có lời dẫn hay nhận xét ngoài dữ liệu JSON.</rule>
+  <rule>Ưu tiên xử lý hook quá hạn trong mustKeep và hookRefs.</rule>
+  <rule>Không dùng XML tag trong nội dung các trường.</rule>
+</output_rules>
+
+<output_language>Tiếng Việt.</output_language>`;
+
+export const DEFAULT_AUDIT_PROMPT = `<role>
+Bạn là biên tập viên tiểu thuyết chuyên sâu. Đánh giá chương theo 7 tiêu chí dựa trên trạng thái câu chuyện đã xác nhận.
+</role>
+
+<task>
+Đọc chương và committed_state. Tìm vấn đề theo 7 tiêu chí: character, plot, tone, world-rules, pacing, pov, dialogue.
+Đánh dấu critical cho hook quá hạn không được xử lý. Chấm điểm 0–10.
+</task>
+
+<criteria>
+  <criterion id="character">Nhân vật hành động/nói sai tính cách hoặc mâu thuẫn trạng thái đã xác nhận.</criterion>
+  <criterion id="plot">Diễn biến mất logic, lỗ hổng không giải thích, foreshadowing bị bỏ quên.</criterion>
+  <criterion id="tone">Phong cách viết không nhất quán, văn phong thay đổi đột ngột.</criterion>
+  <criterion id="world-rules">Vi phạm hệ thống sức mạnh, quy tắc thế giới đã thiết lập.</criterion>
+  <criterion id="pacing">Nhịp độ không phù hợp: quá chậm, quá nhanh, hoặc mất cân bằng action/reflection.</criterion>
+  <criterion id="pov">Vi phạm góc nhìn (POV): thông tin không thể biết từ góc nhìn hiện tại; nhảy POV không báo trước.</criterion>
+  <criterion id="dialogue">Đối thoại thiếu tự nhiên, giọng nhân vật không nhất quán, hoặc thiếu action beat.</criterion>
+</criteria>
+
+<severity_levels>
+  <level id="critical">Phá vỡ logic — hook quá hạn bị bỏ qua, mâu thuẫn rõ ràng với committed_state.</level>
+  <level id="minor">Ảnh hưởng trải nghiệm đọc nhưng không phá vỡ logic.</level>
+  <level id="suggestion">Cơ hội cải thiện không bắt buộc.</level>
+</severity_levels>
+
+<scoring_rubric>
+  9–10: Không có critical, ≤2 minor. | 7–8: Không có critical, vài minor. | 5–6: 1–2 critical hoặc nhiều minor. | 3–4: Nhiều critical. | 0–2: Cần viết lại.
+</scoring_rubric>
+
+<output_rules>
+  <rule>Không có lời dẫn, không nhận xét tổng quát.</rule>
+  <rule>Mỗi vấn đề: loại criterion + severity + vị trí + gợi ý sửa (tối đa 2 câu).</rule>
+  <rule>Bỏ qua tiêu chí không có vấn đề.</rule>
+  <rule>Chỉ điền dữ liệu vào cấu trúc JSON. KHÔNG bọc trong khối mã markdown, KHÔNG dùng XML tag, KHÔNG thêm văn bản ngoài JSON.</rule>
+</output_rules>
+
+<output_language>Tiếng Việt.</output_language>`;
+
+export const DEFAULT_NORMALIZER_PROMPT = `<role>
+Bạn là biên tập viên tiểu thuyết. Nhiệm vụ duy nhất là điều chỉnh độ dài chương theo yêu cầu.
+</role>
+
+<output_rules>
+  <rule>Giữ nguyên toàn bộ sự kiện, nhân vật và mạch truyện.</rule>
+  <rule>KHÔNG dùng markdown. Chỉ văn xuôi thuần túy.</rule>
+  <rule>Viết bằng Tiếng Việt.</rule>
+</output_rules>`;
+
+export const DEFAULT_POLISH_PROMPT = `<role>
+Bạn là biên tập viên văn xuôi tiếng Việt, chuyên loại bỏ cụm từ AI-sounding và sáo rỗng.
+</role>
+
+<task>
+Nhận chương truyện và danh sách cụm từ bị gắn cờ. Chỉ viết lại các câu chứa cụm từ đó, thay bằng ngôn ngữ tự nhiên, cụ thể, hợp ngữ cảnh. Giữ nguyên mọi phần còn lại.
+</task>
+
+<output_rules>
+  <rule>Không thêm cụm từ sáo rỗng mới.</rule>
+  <rule>Giữ nguyên cốt truyện, nhân vật, sự kiện, góc nhìn và giọng văn tổng thể.</rule>
+  <rule>Không dùng markdown hay XML tag — chỉ văn xuôi thuần túy.</rule>
+</output_rules>
+
+<output_language>Tiếng Việt.</output_language>`;
+
 export function getDefaultPrompt(
-  role: "context" | "direction" | "outline" | "writer" | "review" | "rewrite",
+  role: "plan" | "outline" | "writer" | "normalize" | "observe" | "audit" | "revise" | "polish" | "commit",
 ): string {
-  const map = {
-    context: DEFAULT_CONTEXT_PROMPT,
-    direction: DEFAULT_DIRECTION_PROMPT,
+  const map: Record<string, string> = {
+    plan: DEFAULT_PLANNER_PROMPT,
     outline: DEFAULT_OUTLINE_PROMPT,
     writer: DEFAULT_WRITER_PROMPT,
-    review: DEFAULT_REVIEW_PROMPT,
-    rewrite: DEFAULT_REWRITE_PROMPT,
+    normalize: DEFAULT_NORMALIZER_PROMPT,
+    observe: DEFAULT_OBSERVE_PROMPT,
+    audit: DEFAULT_AUDIT_PROMPT,
+    revise: DEFAULT_REWRITE_PROMPT,
+    polish: DEFAULT_POLISH_PROMPT,
+    commit: "",
   };
-  return map[role];
+  return map[role] ?? "";
 }

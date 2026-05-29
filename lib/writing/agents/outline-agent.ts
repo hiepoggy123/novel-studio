@@ -13,6 +13,7 @@ export async function runOutlineAgent(
   selectedDirections: string[],
   chapterLength: number,
   config: AgentConfig,
+  intentBlock = "",
 ): Promise<OutlineAgentOutput> {
   const contextSummary = [
     `Sự kiện trước đó: ${contextOutput.previousEvents}`,
@@ -28,7 +29,7 @@ export async function runOutlineAgent(
 ${contextSummary}
 </context>
 
-<selected_directions>
+${intentBlock ? `${intentBlock}\n\n` : ""}<selected_directions>
 ${directionText}
 </selected_directions>
 

@@ -25,7 +25,7 @@ import {
 // ─── Constants ──────────────────────────────────────────────
 
 const CURRENT_EXPORT_VERSION = 1;
-export const CURRENT_DB_VERSION = 9;
+export const CURRENT_DB_VERSION = 15;
 
 const NOVEL_SCOPED_TABLES = [
   "novels",
@@ -39,10 +39,10 @@ const NOVEL_SCOPED_TABLES = [
   "nameFrequency",
   "plotArcs",
   "chapterPlans",
-  "characterArcs",
   "writingSettings",
   "writingSessions",
   "writingStepResults",
+  "storyStates",
 ] as const;
 
 const AI_TABLES = [
@@ -74,10 +74,10 @@ const IMPORT_ORDER = [
   "nameFrequency",
   "plotArcs",
   "chapterPlans",
-  "characterArcs",
   "writingSettings",
   "writingSessions",
   "writingStepResults",
+  "storyStates",
   "dictMeta",
   "dictCache",
   "dictEntries",
@@ -112,10 +112,10 @@ export const TABLE_LABELS: Record<string, string> = {
   ttsSettings: "Cài đặt TTS",
   plotArcs: "Tuyến truyện",
   chapterPlans: "Kế hoạch chương",
-  characterArcs: "Tiến trình nhân vật",
   writingSettings: "Cài đặt viết",
   writingSessions: "Phiên viết",
   writingStepResults: "Kết quả bước viết",
+  storyStates: "Trạng thái cốt truyện",
 };
 
 // Date fields per table for reviving from JSON
@@ -138,10 +138,10 @@ const DATE_FIELDS: Record<string, string[]> = {
   nameFrequency: ["createdAt", "updatedAt"],
   plotArcs: ["createdAt", "updatedAt"],
   chapterPlans: ["createdAt", "updatedAt"],
-  characterArcs: ["createdAt", "updatedAt"],
   writingSettings: ["createdAt", "updatedAt"],
   writingSessions: ["createdAt", "updatedAt"],
   writingStepResults: ["startedAt", "completedAt"],
+  storyStates: ["updatedAt"],
 };
 
 // FK fields that need remapping in "keep-both" mode
@@ -156,7 +156,7 @@ const FK_FIELDS: Record<string, Record<string, string>> = {
   nameFrequency: { novelId: "novels" },
   plotArcs: { novelId: "novels" },
   chapterPlans: { novelId: "novels", chapterId: "chapters" },
-  characterArcs: { novelId: "novels", characterId: "characters" },
+  storyStates: { id: "novels" },
   writingSessions: { novelId: "novels", chapterPlanId: "chapterPlans" },
   writingStepResults: { sessionId: "writingSessions" },
   aiModels: { providerId: "aiProviders" },
@@ -265,30 +265,39 @@ type TableData = {
     createdAt: Date;
     updatedAt: Date;
   }>;
-  characterArcs?: Array<{
+  storyStates?: Array<{
     id: string;
-    novelId: string;
-    characterId: string;
-    trajectory: string;
-    developments: Array<{ chapterOrder: number; description: string }>;
-    createdAt: Date;
+    lastAppliedChapter: number;
+    characterStates: Array<{ name: string; currentState: string; location?: string; status?: string }>;
+    worldFacts: string;
+    openConflicts: string[];
+    knownTruths: string[];
+    knownFacts: Array<{ subject: string; predicate: string; object: string; sourceChapter: number }>;
+    chapterHashes: Record<string, string>;
+    bootstrapComplete: boolean;
     updatedAt: Date;
+    incomplete?: boolean;
+    warnings?: string[];
   }>;
   writingSettings?: Array<{
     id: string;
     chapterLength: number;
-    contextModel?: { providerId: string; modelId: string };
-    directionModel?: { providerId: string; modelId: string };
+    planModel?: { providerId: string; modelId: string };
     outlineModel?: { providerId: string; modelId: string };
     writerModel?: { providerId: string; modelId: string };
-    reviewModel?: { providerId: string; modelId: string };
-    rewriteModel?: { providerId: string; modelId: string };
-    contextPrompt?: string;
-    directionPrompt?: string;
+    normalizeModel?: { providerId: string; modelId: string };
+    observeModel?: { providerId: string; modelId: string };
+    auditModel?: { providerId: string; modelId: string };
+    reviseModel?: { providerId: string; modelId: string };
+    polishModel?: { providerId: string; modelId: string };
+    planPrompt?: string;
     outlinePrompt?: string;
     writerPrompt?: string;
-    reviewPrompt?: string;
-    rewritePrompt?: string;
+    normalizePrompt?: string;
+    observePrompt?: string;
+    auditPrompt?: string;
+    revisePrompt?: string;
+    polishPrompt?: string;
     createdAt: Date;
     updatedAt: Date;
   }>;
@@ -296,16 +305,16 @@ type TableData = {
     id: string;
     novelId: string;
     chapterPlanId: string;
-    currentStep: "context" | "direction" | "outline" | "writer" | "review" | "rewrite";
+    currentStep: "plan" | "outline" | "writer" | "normalize" | "observe" | "audit" | "revise" | "commit";
     status: "active" | "paused" | "completed" | "error";
-    contextHash?: string;
+    stateHash?: string;
     createdAt: Date;
     updatedAt: Date;
   }>;
   writingStepResults?: Array<{
     id: string;
     sessionId: string;
-    role: "context" | "direction" | "outline" | "writer" | "review" | "rewrite";
+    role: "plan" | "outline" | "writer" | "normalize" | "observe" | "audit" | "revise" | "commit";
     status: "pending" | "running" | "completed" | "editing" | "skipped" | "error";
     output?: string;
     error?: string;
@@ -555,7 +564,11 @@ export async function buildExportPayload(
       "excludedNames",
     ]);
 
-    if (
+    if (isPerNovel && (tableName === "writingSettings" || tableName === "storyStates")) {
+      records = (
+        await Promise.all(novelIds.map((id) => getTable(tableName).get(id)))
+      ).filter(Boolean);
+    } else if (
       isPerNovel &&
       (NOVEL_SCOPED_TABLES as readonly string[]).includes(tableName) &&
       tableName !== "novels"
@@ -775,7 +788,7 @@ export async function importDatabase(
       // Singletons: use overwrite semantics (can't have two "default" rows)
       if (SINGLETON_TABLES.has(tableName)) {
         await table.bulkPut(records);
-      } else if (tableName === "writingSettings") {
+      } else if (tableName === "writingSettings" || tableName === "storyStates") {
         records = records.map((r) => ({
           ...r,
           id: idMaps.novels?.get(r.id as string) ?? r.id,

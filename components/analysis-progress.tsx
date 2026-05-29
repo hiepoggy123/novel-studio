@@ -1,19 +1,19 @@
 "use client";
 
-import {
-  XIcon,
-  LoaderIcon,
-  AlertTriangleIcon,
-  CheckCircleIcon,
-  MinusCircleIcon,
-  CircleDotDashedIcon,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useAnalysisStore } from "@/lib/stores/analysis";
-import type { PhaseResult } from "@/lib/stores/analysis";
 import type { IncrementalResultSummary } from "@/lib/analysis/incremental-analyzer";
+import type { PhaseResult } from "@/lib/stores/analysis";
+import { useAnalysisStore } from "@/lib/stores/analysis";
+import {
+  AlertTriangleIcon,
+  CheckCircleIcon,
+  CircleDotDashedIcon,
+  LoaderIcon,
+  MinusCircleIcon,
+  XIcon,
+} from "lucide-react";
 import { useMemo } from "react";
 
 const PHASE_STEP_LABELS: Record<string, string> = {
@@ -41,9 +41,13 @@ function PhaseResultIcon({
     case "error":
       return <AlertTriangleIcon className={`${className} text-destructive`} />;
     case "skipped":
-      return <MinusCircleIcon className={`${className} text-muted-foreground`} />;
+      return (
+        <MinusCircleIcon className={`${className} text-muted-foreground`} />
+      );
     case "running":
-      return <LoaderIcon className={`${className} animate-spin text-primary`} />;
+      return (
+        <LoaderIcon className={`${className} animate-spin text-primary`} />
+      );
     default:
       return (
         <CircleDotDashedIcon
@@ -215,41 +219,35 @@ export function AnalysisProgress() {
 
       {/* Error list */}
       {hasErrors && (
-        <ScrollArea className="max-h-28">
-          <div className="space-y-1">
-            {errors.map((err, i) => (
-              <div
-                key={i}
-                className="flex items-start gap-1.5 rounded px-2 py-1 text-xs text-destructive"
-              >
-                <AlertTriangleIcon className="mt-0.5 size-3 shrink-0" />
-                <span>
-                  {err.chapterTitle ? (
-                    <span className="font-medium">{err.chapterTitle}: </span>
-                  ) : (
-                    <span className="font-medium capitalize">
-                      {err.phase}:{" "}
-                    </span>
-                  )}
-                  {err.message}
-                </span>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
+        <div className="space-y-1">
+          {errors.map((err, i) => (
+            <div
+              key={i}
+              className="flex items-start gap-1.5 rounded px-2 py-1 text-xs text-destructive"
+            >
+              <AlertTriangleIcon className="mt-0.5 size-3 shrink-0" />
+              <span>
+                {err.chapterTitle ? (
+                  <span className="font-medium">{err.chapterTitle}: </span>
+                ) : (
+                  <span className="font-medium capitalize">{err.phase}: </span>
+                )}
+                {err.message}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Result summary */}
-      {resultSummary && effectiveDone && <ResultSummaryView summary={resultSummary} />}
+      {resultSummary && effectiveDone && (
+        <ResultSummaryView summary={resultSummary} />
+      )}
     </div>
   );
 }
 
-function ResultSummaryView({
-  summary,
-}: {
-  summary: IncrementalResultSummary;
-}) {
+function ResultSummaryView({ summary }: { summary: IncrementalResultSummary }) {
   const items: string[] = [];
 
   if (summary.chaptersAnalyzed > 0)

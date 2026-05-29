@@ -48,6 +48,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { CharacterEditDialog } from "./character-edit-dialog";
+import { GenerateCharactersDialog } from "./generate-characters-dialog";
 
 // ─── Detail row with icon + color ───────────────────────────
 
@@ -324,6 +325,7 @@ export function CharactersTab({
   const [editChar, setEditChar] = useState<Character | undefined>();
   const [editOpen, setEditOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [generateOpen, setGenerateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Character | null>(null);
 
   const handleDelete = async () => {
@@ -346,10 +348,20 @@ export function CharactersTab({
             {characters.length} nhân vật
           </span>
         </div>
-        <Button size="sm" onClick={() => setAddOpen(true)}>
-          <PlusIcon className="mr-1.5 size-3.5" />
-          Thêm nhân vật
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setGenerateOpen(true)}
+          >
+            <SparklesIcon className="mr-1.5 size-3.5" />
+            Tạo bằng AI
+          </Button>
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <PlusIcon className="mr-1.5 size-3.5" />
+            Thêm nhân vật
+          </Button>
+        </div>
       </div>
 
       {characters.length === 0 ? (
@@ -380,6 +392,13 @@ export function CharactersTab({
         open={addOpen}
         onOpenChange={setAddOpen}
         novelId={novelId}
+      />
+
+      <GenerateCharactersDialog
+        open={generateOpen}
+        onOpenChangeAction={setGenerateOpen}
+        novelId={novelId}
+        existingNames={characters.map((c) => c.name)}
       />
 
       {editChar && (

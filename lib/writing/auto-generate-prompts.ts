@@ -49,6 +49,8 @@ Dựa trên thông tin về thể loại, bối cảnh và ý tưởng, xây d�
   <req>Thế giới phải phù hợp với thể loại được chỉ định.</req>
 </world_requirements>
 
+<output_format>Trả về DUY NHẤT JSON hợp lệ theo schema được yêu cầu. KHÔNG bọc trong khối mã markdown, KHÔNG dùng XML tag, KHÔNG thêm văn bản giải thích ngoài JSON.</output_format>
+
 <output_language>Tiếng Việt.</output_language>`;
 
 export const DEFAULT_CHARACTER_GENERATION_SYSTEM = `<role>
@@ -65,6 +67,8 @@ Tạo 5-10 nhân vật phù hợp với thế giới và ý tưởng đã cung c
   <req>Các nhân vật phải có mối quan hệ tương tác và ảnh hưởng lẫn nhau.</req>
   <req>Tính cách và động lực phải nhất quán với thế giới đã xây dựng.</req>
 </character_requirements>
+
+<output_format>Trả về DUY NHẤT JSON hợp lệ theo schema được yêu cầu. KHÔNG bọc trong khối mã markdown, KHÔNG dùng XML tag, KHÔNG thêm văn bản giải thích ngoài JSON.</output_format>
 
 <output_language>Tiếng Việt.</output_language>`;
 
@@ -83,9 +87,34 @@ Tạo mạch truyện chính và phụ với các điểm mốc cụ thể, phù
   <req>Các mạch truyện phải liên kết với nhân vật và thế giới đã xây dựng.</req>
 </arc_requirements>
 
+<output_format>Trả về DUY NHẤT JSON hợp lệ theo schema được yêu cầu. KHÔNG bọc trong khối mã markdown, KHÔNG dùng XML tag, KHÔNG thêm văn bản giải thích ngoài JSON.</output_format>
+
 <output_language>Tiếng Việt.</output_language>`;
 
-export function buildChapterPlanSystem(chapterCount: number): string {
+export function buildChapterPlanSystem(
+  chapterCount: number,
+  fromOrder: number = 0,
+): string {
+  if (fromOrder > 0) {
+    return `<role>
+Bạn là nhà văn chuyên lập kế hoạch tiểu thuyết. Truyện đã có ${fromOrder} chương; nhiệm vụ của bạn là lập kế hoạch cho các chương TIẾP THEO, viết tiếp mạch truyện đang dang dở.
+</role>
+
+<task>
+Tạo kế hoạch cho ${chapterCount} chương tiếp theo, bắt đầu từ chương ${fromOrder + 1}. Mỗi chương cần tiêu đề gợi cảm và 2–3 hướng đi chính cho nội dung.
+</task>
+
+<chapter_plan_requirements>
+  <req>Kế hoạch phải nhất quán với thế giới, nhân vật và mạch truyện đã xây dựng.</req>
+  <req>Tiếp nối trực tiếp từ chương ${fromOrder}. TUYỆT ĐỐI KHÔNG thiết lập lại thế giới, giới thiệu lại nhân vật hay bắt đầu cốt truyện từ đầu.</req>
+  <req>Chương sau phải tiếp nối logic và phát triển cốt truyện từ chương trước.</req>
+  <req>Hướng đi của mỗi chương phải cụ thể, không chung chung.</req>
+</chapter_plan_requirements>
+
+<output_format>Trả về DUY NHẤT JSON hợp lệ theo schema được yêu cầu. KHÔNG bọc trong khối mã markdown, KHÔNG dùng XML tag, KHÔNG thêm văn bản giải thích ngoài JSON.</output_format>
+
+<output_language>Tiếng Việt.</output_language>`;
+  }
   return `<role>
 Bạn là nhà văn chuyên lập kế hoạch tiểu thuyết. Nhiệm vụ của bạn là tạo kế hoạch chi tiết và khả thi cho các chương đầu tiên của truyện.
 </role>
@@ -100,6 +129,8 @@ Tạo kế hoạch cho ${chapterCount} chương tiếp theo. Mỗi chương cầ
   <req>Hướng đi của mỗi chương phải cụ thể, không chung chung.</req>
   <req>Các chương đầu phải thiết lập thế giới, nhân vật và xung đột rõ ràng.</req>
 </chapter_plan_requirements>
+
+<output_format>Trả về DUY NHẤT JSON hợp lệ theo schema được yêu cầu. KHÔNG bọc trong khối mã markdown, KHÔNG dùng XML tag, KHÔNG thêm văn bản giải thích ngoài JSON.</output_format>
 
 <output_language>Tiếng Việt.</output_language>`;
 }

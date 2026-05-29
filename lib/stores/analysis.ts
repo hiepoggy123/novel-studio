@@ -154,19 +154,26 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
       phaseResults: { ...DEFAULT_PHASE_RESULTS },
     }),
 
-  // Reset for retry: clear progress but KEEP phaseResults + failedChapterIds
+  // Reset for retry: clear progress and flip errored phases back to "running"
+  // so the UI shows a loading state instead of stale errors. Retry targeting
+  // (failed chapter ids, skip phases) is captured by the caller before this runs.
   resetForRetry: () =>
-    set((state) => ({
-      isAnalyzing: true,
-      phase: "chapters",
-      chaptersCompleted: 0,
-      errors: [],
-      resultSummary: null,
-      abortController: new AbortController(),
-      // Keep these for retry targeting
-      failedChapterIds: state.failedChapterIds,
-      phaseResults: state.phaseResults,
-    })),
+    set((state) => {
+      const phaseResults = { ...state.phaseResults };
+      for (const key of Object.keys(phaseResults) as (keyof PhaseResults)[]) {
+        if (phaseResults[key] === "error") phaseResults[key] = "running";
+      }
+      return {
+        isAnalyzing: true,
+        phase: "chapters",
+        chaptersCompleted: 0,
+        errors: [],
+        resultSummary: null,
+        abortController: new AbortController(),
+        failedChapterIds: [],
+        phaseResults,
+      };
+    }),
 }));
 
 export type { PhaseResult, PhaseResults, EnabledSteps };

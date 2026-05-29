@@ -10,9 +10,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 pnpm dev       # Start dev server (Turbopack)
 pnpm build     # Production build
 pnpm lint      # ESLint
+pnpm test      # Vitest (run once)
+pnpm test:watch  # Vitest (watch mode)
 ```
 
-No test framework is configured. There are no unit/integration tests.
+Vitest (node env, `@` alias configured in `vitest.config.ts`) covers the pure-function core of the writing pipeline (state reducer, schemas, bootstrap, fact/hook selection, length/revise logic, style fingerprint, pipeline loop). UI and Dexie-bound code have no automated tests.
 
 ## Architecture
 
@@ -31,7 +33,7 @@ Novel Studio is a local-first creative writing workspace (Vietnamese UI, `lang="
 
 ### Data layer
 
-Single Dexie database `novel-studio` with schema versioning in `lib/db-migrations.ts` (currently v11). Types live in `lib/db.ts`, migrations are separate.
+Single Dexie database `novel-studio` with schema versioning in `lib/db-migrations.ts` (currently v15). Types live in `lib/db.ts`, migrations are separate.
 
 **Content hierarchy:** Novel → Chapter → Scene (hierarchical, `order` field for reordering), Character, Note (all scoped to `novelId`)
 
@@ -41,7 +43,7 @@ Single Dexie database `novel-studio` with schema versioning in `lib/db-migration
 
 **QT (Quick Translate) system:** NameEntry (Chinese→Vietnamese name mappings, scoped globally or per-novel), ReplaceRule (regex/literal find-replace), ExcludedName, DictEntry/DictMeta/DictCache (bulk dictionary loaded from text files), ConvertSettings, NameFrequency (detected name tracking with approve/reject workflow)
 
-**Writing pipeline:** PlotArc → PlotPoint, ChapterPlan, CharacterArc, WritingSettings (per-novel, `id === novelId`), WritingSession, WritingStepResult
+**Writing pipeline:** PlotArc → PlotPoint (hook fields: `payoffTiming`, `expectedPayoff`, `coreHook`, `lastAdvancedChapter`), ChapterPlan (with `intent`), StoryState (committed story-state snapshot, `id === novelId`: characterStates, worldFacts, openConflicts, knownTruths, knownFacts, chapterHashes, auditHistory, bootstrapComplete), WritingSettings (per-novel, `id === novelId`), WritingSession (with `stateHash`), WritingStepResult. The former `CharacterArc` table was dropped in v13 (migrated into StoryState `knownFacts`); character state now lives solely in the snapshot.
 
 **Other singletons:** TTSSettings (`id: "default"`)
 
@@ -61,11 +63,16 @@ Three-phase pipeline: chapter analysis → novel aggregation → character profi
 
 ### Writing pipeline (`lib/writing/`)
 
-Multi-agent orchestration via `orchestrator.ts`. Six sequential roles: context → direction → outline → writer → review → rewrite. Each role has a dedicated agent in `lib/writing/agents/`. Supports two modes:
-- **Classic:** LLM-generated context, interactive direction picking
-- **Smart:** Synthetic context from DB (`synthetic-context.ts`), tool-assisted writer (`smart-writer-agent.ts`)
+State-driven multi-agent orchestration. `orchestrator.ts` is a thin re-export of `pipeline/run-pipeline.ts`, a data-driven loop over a step graph in `pipeline/steps.ts`. Eight roles per chapter: `plan → outline → writer → [normalize] → observe → audit → [revise → re-observe] → commit`. Each role has a dedicated agent in `lib/writing/agents/`.
 
-Pipeline is configurable per-novel via `WritingSettings` (model + prompt per step). "Hands-free" mode runs the full pipeline without interactive pauses.
+Core idea: the writer output is parsed by a dedicated **observer** agent into a validated `StateDelta`; a pure **reducer** (`state/reducer.ts`) applies it to a single committed `StoryState` snapshot. The next chapter's context is **retrieved** from committed state (`retrieved-context.ts`), not re-derived — this kills long-range drift. The Scene is the single source of truth: `commitChapterState` saves/versions the Scene first, then observes the saved text, reduces, and persists snapshot + chapter + scene + PlotPoint hooks in one Dexie transaction. Edited chapters re-sync lazily via `resyncChapterState` (per-chapter `chapterHashes` diff).
+
+- **State engine** (`lib/writing/state/`): pure reducer, zod v4 schemas, bootstrap, fact/hook selection; Dexie isolated in `state-store.ts`.
+- **Planner** merges the former context+direction steps into a state-aware `ChapterIntent` + direction options.
+- **Audit** scores 0–10 across ~7 dims against committed state + open hooks; the revise loop re-observes in memory and `commitChapterState` runs exactly once with the final delta.
+- **Anti-AI prose** (`lib/writing/style/`): regex-based style fingerprint injected into the writer + a curated VI fatigue/cliché list feeding audit and an optional polish pass.
+
+Pipeline is configurable per-novel via `WritingSettings` (per-step model + prompt). Human mode pauses at the plan and audit gates; "hands-free" (`noAskingMode`) runs the full pipeline without pauses. The pure-function core is unit-tested with Vitest (`pnpm test`).
 
 ### QT conversion system (`lib/workers/`)
 

@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
+import { LineEditor } from "@/components/ui/line-editor";
 import type { DirectionOption } from "@/lib/writing/types";
 import { PlusIcon, RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
@@ -186,11 +186,13 @@ export function DirectionSelector({
 
       {showCustom ? (
         <div className="space-y-2">
-          <Textarea
+          <LineEditor
             placeholder="Mô tả hướng đi tùy chỉnh..."
             value={customInput}
-            onChange={(e) => setCustomInput(e.target.value)}
-            rows={3}
+            onChange={setCustomInput}
+            className="h-[88px]"
+            contentFont="text-sm leading-5"
+            gutterFont="text-xs leading-5"
           />
           <div className="flex gap-2">
             <Button

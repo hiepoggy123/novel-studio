@@ -19,6 +19,10 @@ import {
   DEFAULT_REVIEW_SYSTEM,
   DEFAULT_TRANSLATE_SYSTEM,
 } from "@/lib/chapter-tools/prompts";
+import {
+  DEFAULT_ENHANCE_SYSTEM,
+  DEFAULT_GENERATE_MORE_SYSTEM,
+} from "@/lib/writing/character-ai-prompts";
 import type { StepModelConfig, WritingAgentRole } from "@/lib/db";
 import {
   getOrCreateWritingSettings,
@@ -342,6 +346,25 @@ const CHAPTER_TOOL_CONFIG: Record<string, FieldConfig> = {
   },
 };
 
+const CHARACTER_TOOL_CONFIG: Record<string, FieldConfig> = {
+  "character-enhance": {
+    title: "Cải thiện hồ sơ",
+    description:
+      "Hoàn thiện hồ sơ một nhân vật dựa trên các chương đã viết và thế giới quan.",
+    modelKey: "characterEnhanceModel",
+    promptKey: "characterEnhancePrompt",
+    defaultPrompt: DEFAULT_ENHANCE_SYSTEM,
+  },
+  "character-generate": {
+    title: "Tạo nhân vật",
+    description:
+      "Tạo thêm nhân vật mới phù hợp với thế giới và dàn nhân vật hiện có.",
+    modelKey: "characterGenerateModel",
+    promptKey: "characterGeneratePrompt",
+    defaultPrompt: DEFAULT_GENERATE_MORE_SYSTEM,
+  },
+};
+
 function AnalysisPhaseEditor({ item }: { item: ConfigItemId }) {
   const settings = useAnalysisSettings();
   const { saved, show } = useSaveIndicator();
@@ -436,7 +459,7 @@ function ChapterToolEditor({ item }: { item: ConfigItemId }) {
   const settings = useAnalysisSettings();
   const { saved, show } = useSaveIndicator();
 
-  const config = CHAPTER_TOOL_CONFIG[item];
+  const config = CHAPTER_TOOL_CONFIG[item] ?? CHARACTER_TOOL_CONFIG[item];
   const defaultPrompt = config?.defaultPrompt ?? "";
   const customPrompt = config
     ? (settings[config.promptKey as keyof typeof settings] as
@@ -532,7 +555,6 @@ function AutowriteSetupEditor() {
   const { saved, show } = useSaveIndicator();
 
   const chapterLength = settings?.chapterLength ?? 3000;
-  const smartWritingMode = settings?.smartWritingMode ?? false;
   const noAskingMode = settings?.noAskingMode ?? false;
   const smartWriterMaxToolSteps = settings?.smartWriterMaxToolSteps ?? 12;
   const minScoreToAutoAccept = settings?.minScoreToAutoAccept ?? 7;
@@ -572,25 +594,6 @@ function AutowriteSetupEditor() {
         </p>
         <div className="flex items-start gap-3">
           <Switch
-            id="gd-smart"
-            className="mt-0.5"
-            checked={smartWritingMode}
-            onCheckedChange={(v) => update({ smartWritingMode: v })}
-          />
-          <div className="space-y-0.5">
-            <Label
-              htmlFor="gd-smart"
-              className="cursor-pointer text-sm font-medium leading-snug"
-            >
-              Viết thông minh
-            </Label>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              Tra cứu tiểu thuyết bằng công cụ, không gọi LLM bước bối cảnh.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-start gap-3">
-          <Switch
             id="gd-noask"
             className="mt-0.5"
             checked={noAskingMode}
@@ -608,15 +611,10 @@ function AutowriteSetupEditor() {
             </p>
           </div>
         </div>
-        <div
-          className={cn(
-            "space-y-3 border-t border-border/60 pt-3",
-            !smartWritingMode && "pointer-events-none opacity-50",
-          )}
-        >
+        <div className="space-y-3 border-t border-border/60 pt-3">
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium">
-              Giới hạn bước công cụ (smart writer)
+              Giới hạn bước công cụ (bước Viết)
             </Label>
             <span className="min-w-[2ch] text-right text-sm font-semibold tabular-nums">
               {smartWriterMaxToolSteps}
@@ -631,7 +629,6 @@ function AutowriteSetupEditor() {
               const n = v[0];
               if (n != null) update({ smartWriterMaxToolSteps: n });
             }}
-            disabled={!smartWritingMode}
             aria-label="Giới hạn bước"
           />
         </div>
@@ -682,44 +679,58 @@ function AutowriteSetupEditor() {
 
 // ─── Auto-write pipeline agent editor ────────────────────────
 
-const AGENT_ROLE_MAP: Partial<Record<ConfigItemId, WritingAgentRole>> = {
-  "autowrite-context": "context",
-  "autowrite-direction": "direction",
+type PipelineRole = WritingAgentRole | "polish";
+
+const AGENT_ROLE_MAP: Partial<Record<ConfigItemId, PipelineRole>> = {
+  "autowrite-plan": "plan",
   "autowrite-outline": "outline",
   "autowrite-writer": "writer",
-  "autowrite-review": "review",
-  "autowrite-rewrite": "rewrite",
+  "autowrite-normalize": "normalize",
+  "autowrite-observe": "observe",
+  "autowrite-audit": "audit",
+  "autowrite-revise": "revise",
+  "autowrite-polish": "polish",
 };
 
 const AGENT_LABEL: Record<
-  WritingAgentRole,
+  PipelineRole,
   { title: string; description: string }
 > = {
-  context: {
-    title: "Bối cảnh",
-    description:
-      "Tổng hợp bối cảnh từ chương trước để chuẩn bị cho chương mới.",
-  },
-  direction: {
-    title: "Hướng đi",
-    description: "Đề xuất 3–5 hướng phát triển chương đa dạng.",
+  plan: {
+    title: "Kế hoạch",
+    description: "Lập kế hoạch chương dựa trên trạng thái truyện đã xác nhận, đề xuất hướng đi.",
   },
   outline: {
     title: "Giàn ý",
-    description:
-      "Tạo cấu trúc phân cảnh chi tiết với sự kiện, tâm trạng và số từ mục tiêu.",
+    description: "Tạo cấu trúc phân cảnh chi tiết với sự kiện, tâm trạng và số từ mục tiêu.",
   },
   writer: {
     title: "Viết truyện",
     description: "Viết nội dung chương hoàn chỉnh theo giàn ý.",
   },
-  review: {
-    title: "Đánh giá",
-    description: "Đánh giá chương theo 4 tiêu chí, cho điểm 0–10.",
+  normalize: {
+    title: "Chuẩn hóa độ dài",
+    description: "Điều chỉnh độ dài chương theo mục tiêu đã đặt.",
   },
-  rewrite: {
+  observe: {
+    title: "Quan sát",
+    description: "Trích xuất thay đổi trạng thái truyện từ nội dung chương đã lưu.",
+  },
+  audit: {
+    title: "Kiểm duyệt",
+    description: "Đánh giá chương theo 7 tiêu chí dựa trên trạng thái đã xác nhận, cho điểm 0–10.",
+  },
+  revise: {
     title: "Viết lại",
-    description: "Viết lại chương dựa trên kết quả đánh giá.",
+    description: "Viết lại chương dựa trên kết quả kiểm duyệt.",
+  },
+  commit: {
+    title: "Xác nhận",
+    description: "Lưu chương và cập nhật trạng thái câu chuyện.",
+  },
+  polish: {
+    title: "Tinh chỉnh",
+    description: "Thay thế cụm từ AI-sounding/sáo rỗng để văn tự nhiên hơn. Bật trong cài đặt từng tiểu thuyết.",
   },
 };
 
@@ -728,9 +739,9 @@ function AutowriteAgentEditor({ item }: { item: ConfigItemId }) {
   const settings = useWritingSettings(GLOBAL_DEFAULT_ID);
   const { saved, show } = useSaveIndicator();
 
-  const defaultPrompt = role ? getDefaultPrompt(role) : "";
-  const modelKey = role ? (`${role}Model` as const) : undefined;
-  const promptKey = role ? (`${role}Prompt` as const) : undefined;
+  const defaultPrompt = role ? getDefaultPrompt(role as Parameters<typeof getDefaultPrompt>[0]) : "";
+  const modelKey = role ? (`${role}Model` as keyof typeof settings) : undefined;
+  const promptKey = role ? (`${role}Prompt` as keyof typeof settings) : undefined;
   const modelValue = modelKey
     ? (settings?.[modelKey] as StepModelConfig | undefined)
     : undefined;
@@ -956,6 +967,8 @@ export function ConfigEditor({ item }: { item: ConfigItemId }) {
       case "chapter-translate":
       case "chapter-review":
       case "chapter-rewrite":
+      case "character-enhance":
+      case "character-generate":
         return <ChapterToolEditor item={item} />;
       case "autowrite-setup":
         return <AutowriteSetupEditor />;
@@ -964,12 +977,14 @@ export function ConfigEditor({ item }: { item: ConfigItemId }) {
       case "autowrite-arcs":
       case "autowrite-plans":
         return <AutowriteSetupStepEditor item={item} />;
-      case "autowrite-context":
-      case "autowrite-direction":
+      case "autowrite-plan":
       case "autowrite-outline":
       case "autowrite-writer":
-      case "autowrite-review":
-      case "autowrite-rewrite":
+      case "autowrite-normalize":
+      case "autowrite-observe":
+      case "autowrite-audit":
+      case "autowrite-revise":
+      case "autowrite-polish":
         return <AutowriteAgentEditor item={item} />;
       default:
         return null;

@@ -155,6 +155,8 @@ export function registerMigrations(db: NovelStudioDB) {
 
   // v12: keyEvents on ChapterPlanScene, retry fields on WritingSettings,
   //      reviewIssues on Novel — all non-indexed fields; schema strings unchanged
+  // v13: adds storyStates table; drops characterArcs (migrated to knownFacts in snapshot);
+  //      resets in-flight writingSessions so legacy role names don't crash v2 pipeline
   db.version(12).stores({
     novels: "id, title, genre, createdAt, updatedAt",
     chapters: "id, novelId, order, createdAt, updatedAt",
@@ -187,4 +189,139 @@ export function registerMigrations(db: NovelStudioDB) {
       "id, novelId, chapterPlanId, status, [novelId+status], createdAt",
     writingStepResults: "id, sessionId, role, [sessionId+role]",
   });
+
+  db.version(13)
+    .stores({
+      storyStates: "id",
+    })
+    .upgrade(async (tx) => {
+      const characterArcsTable = tx.table("characterArcs");
+      const novelsTable = tx.table("novels");
+      const storyStatesTable = tx.table("storyStates");
+      const writingSessionsTable = tx.table("writingSessions");
+
+      const arcs = await characterArcsTable.toArray();
+
+      const factsByNovel = new Map<
+        string,
+        Array<{ subject: string; predicate: string; object: string; sourceChapter: number }>
+      >();
+
+      const charactersTable = tx.table("characters");
+      const allChars = await charactersTable.toArray();
+      const charById = new Map<string, { name: string }>(
+        allChars.map((c: { id: string; name: string }) => [c.id, c]),
+      );
+
+      for (const arc of arcs) {
+        const char = charById.get(arc.characterId);
+        if (!char) continue;
+
+        const facts = factsByNovel.get(arc.novelId) ?? [];
+
+        if (arc.trajectory) {
+          facts.push({
+            subject: char.name,
+            predicate: "hành trình",
+            object: arc.trajectory,
+            sourceChapter: 0,
+          });
+        }
+
+        for (const dev of arc.developments ?? []) {
+          facts.push({
+            subject: char.name,
+            predicate: `phát triển ch.${dev.chapterOrder}`,
+            object: dev.description,
+            sourceChapter: dev.chapterOrder,
+          });
+        }
+
+        factsByNovel.set(arc.novelId, facts);
+      }
+
+      const novels = await novelsTable.toArray();
+      for (const novel of novels) {
+        const knownFacts = factsByNovel.get(novel.id) ?? [];
+        const auditHistory = (novel.reviewIssues ?? []).map(
+          (issue: { chapterOrder: number; type: string; description: string }) => ({
+            chapterOrder: issue.chapterOrder,
+            type: issue.type,
+            description: issue.description,
+            migratedAt: new Date().toISOString(),
+          }),
+        );
+
+        const existing = await storyStatesTable.get(novel.id);
+        if (!existing) {
+          await storyStatesTable.put({
+            id: novel.id,
+            lastAppliedChapter: 0,
+            characterStates: [],
+            worldFacts: novel.worldOverview ?? "",
+            openConflicts: [],
+            knownTruths: [],
+            knownFacts,
+            chapterHashes: {},
+            bootstrapComplete: false,
+            updatedAt: new Date(),
+            incomplete: true,
+            warnings: ["Dữ liệu được di chuyển từ phiên bản cũ — cần bootstrap lại."],
+            auditHistory,
+          });
+        }
+      }
+
+      const activeSessions = await writingSessionsTable
+        .where("status")
+        .equals("active")
+        .toArray();
+
+      for (const session of activeSessions) {
+        await writingSessionsTable.update(session.id, {
+          currentStep: "outline",
+          status: "paused",
+          updatedAt: new Date(),
+        });
+      }
+    });
+
+  db.version(14).stores({
+    characterArcs: null,
+  });
+
+  db.version(15)
+    .stores({})
+    .upgrade(async (tx) => {
+      const sessionsTable = tx.table("writingSessions");
+      const stepResultsTable = tx.table("writingStepResults");
+
+      const roleMap: Record<string, string> = {
+        context: "plan",
+        direction: "plan",
+        review: "audit",
+        rewrite: "revise",
+      };
+
+      const nonCompleted = await sessionsTable
+        .filter((s: { status: string }) => s.status !== "completed")
+        .toArray();
+
+      for (const session of nonCompleted) {
+        const mappedStep = roleMap[session.currentStep] ?? session.currentStep;
+        await sessionsTable.update(session.id, {
+          currentStep: mappedStep,
+          stateHash: undefined,
+          updatedAt: new Date(),
+        });
+      }
+
+      const allResults = await stepResultsTable.toArray();
+      for (const result of allResults) {
+        const mappedRole = roleMap[result.role];
+        if (mappedRole) {
+          await stepResultsTable.update(result.id, { role: mappedRole });
+        }
+      }
+    });
 }

@@ -1,12 +1,12 @@
 {
   "announcements": [
     {
-      "id": "version-0.11.1-07.04.2026",
+      "id": "version-0.12.0-30.05.2026",
       "enabled": true,
       "type": "info",
-      "content": "**Novel Studio** chính thức mã nguồn mở! Tham khảo và đóng góp tại [Github Repo](https://github.com/ldblckrs-258/novel-studio).",
-      "bgColor": "bg-sky-500/10 dark:bg-sky-500/15",
-      "textColor": "text-sky-700 dark:text-sky-300"
+      "content": "**Auto-Write 2.0**: Nâng cấp hệ thống viết truyện - nhất quán & chuyên nghiệp. [Xem thêm](/changelog).",
+      "bgColor": "bg-orange-500/10 dark:bg-orange-500/15",
+      "textColor": "text-orange-700 dark:text-orange-300"
     }
   ]
 }

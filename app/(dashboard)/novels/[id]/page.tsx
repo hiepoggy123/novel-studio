@@ -37,7 +37,7 @@ import {
   useNovel,
   useNovelScenes,
 } from "@/lib/hooks";
-import { downloadNovelJson, exportNovel } from "@/lib/novel-io";
+import { ExportNovelDialog } from "@/components/novel/export-novel-dialog";
 import {
   DownloadIcon,
   ExternalLinkIcon,
@@ -76,6 +76,7 @@ export default function NovelDetailPage() {
   const [selectedChapterIds, setSelectedChapterIds] = useState<string[]>([]);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [translateOpen, setTranslateOpen] = useState(false);
   const [translateChapterIds, setTranslateChapterIds] = useState<string[]>([]);
   const [replaceOpen, setReplaceOpen] = useState(false);
@@ -119,16 +120,7 @@ export default function NovelDetailPage() {
     setConvertOpen(true);
   };
 
-  const handleExport = async () => {
-    if (!novel) return;
-    try {
-      const data = await exportNovel(novel.id);
-      downloadNovelJson(data);
-      toast.success(`Đã xuất "${novel.title}"`);
-    } catch {
-      toast.error("Xuất tiểu thuyết thất bại");
-    }
-  };
+  const handleExport = () => setExportOpen(true);
 
   const handleDelete = async () => {
     if (!novel) return;
@@ -438,6 +430,12 @@ export default function NovelDetailPage() {
         open={editOpen}
         onOpenChange={setEditOpen}
         novel={novel}
+      />
+
+      <ExportNovelDialog
+        novel={novel}
+        open={exportOpen}
+        onOpenChange={setExportOpen}
       />
 
       {/* Delete confirmation */}

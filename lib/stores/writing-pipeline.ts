@@ -5,7 +5,7 @@ interface WritingPipelineState {
   activeSessionId: string | null;
   isRunning: boolean;
   abortController: AbortController | null;
-  activePanel: "context" | "pipeline" | "outline" | "content" | "review";
+  activePanel: "pipeline" | "outline" | "content" | "observe" | "review";
   streamingContent: string;
   /** Smart writer: human-readable status (tool lookup vs generating text). */
   writerActivityLabel: string;
@@ -25,7 +25,7 @@ interface WritingPipelineState {
   pausePipeline: () => void;
   cancelPipeline: () => void;
   setActivePanel: (
-    panel: "context" | "pipeline" | "outline" | "content" | "review",
+    panel: "pipeline" | "outline" | "content" | "observe" | "review",
   ) => void;
   appendStreamingContent: (chunk: string) => void;
   clearStreamingContent: () => void;
@@ -44,7 +44,7 @@ export const useWritingPipelineStore = create<WritingPipelineState>(
     activeSessionId: null,
     isRunning: false,
     abortController: null,
-    activePanel: "context",
+    activePanel: "pipeline",
     streamingContent: "",
     writerActivityLabel: "",
     stepUserInstructions: {},
@@ -118,7 +118,7 @@ export const useWritingPipelineStore = create<WritingPipelineState>(
         activeSessionId: null,
         isRunning: false,
         abortController: null,
-        activePanel: "context",
+        activePanel: "pipeline",
         streamingContent: "",
         writerActivityLabel: "",
         stepUserInstructions: {},

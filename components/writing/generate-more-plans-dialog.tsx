@@ -19,7 +19,7 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
-import { Textarea } from "@/components/ui/textarea";
+import { LineEditor } from "@/components/ui/line-editor";
 import type { StepModelConfig } from "@/lib/db";
 import {
   getOrCreateWritingSettings,
@@ -127,8 +127,15 @@ function PromptCollapsible({
   const settings = useWritingSettings(novelId);
   const promptKey = `${role}Prompt` as const;
   const defaultPrompt = getDefaultPrompt(role);
-  const isCustom = !!(settings?.[promptKey] as string | undefined);
+  const storedPrompt = (settings?.[promptKey] as string | undefined) ?? "";
+  const isCustom = !!storedPrompt;
+  const effectivePrompt = storedPrompt || defaultPrompt;
   const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(effectivePrompt);
+
+  useEffect(() => {
+    setDraft(effectivePrompt);
+  }, [effectivePrompt]);
 
   const debouncedPromptChange = useDebouncedCallback(
     async (value: string) => {
@@ -140,8 +147,10 @@ function PromptCollapsible({
     500,
   );
 
-  const displayPrompt =
-    (settings?.[promptKey] as string | undefined) ?? defaultPrompt;
+  const handleChange = (value: string) => {
+    setDraft(value);
+    debouncedPromptChange.run(value);
+  };
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -159,21 +168,25 @@ function PromptCollapsible({
               variant="ghost"
               size="sm"
               className="h-7 text-xs"
-              onClick={() =>
-                updateWritingSettings(novelId, { [promptKey]: undefined })
-              }
+              onClick={() => {
+                debouncedPromptChange.cancel();
+                void updateWritingSettings(novelId, {
+                  [promptKey]: undefined,
+                });
+              }}
             >
               <RotateCcwIcon className="h-3 w-3 mr-1" />
               Khôi phục mặc định
             </Button>
           )}
         </div>
-        <Textarea
-          key={`${novelId}-${role}-${isCustom ? "c" : "d"}`}
-          defaultValue={displayPrompt}
-          onChange={(e) => debouncedPromptChange.run(e.target.value)}
-          rows={8}
-          className="text-xs font-mono leading-relaxed resize-y"
+        <LineEditor
+          value={draft}
+          onChange={handleChange}
+          className="h-[200px]"
+          contentFont="text-xs leading-5"
+          gutterFont="text-xs leading-5"
+          xmlColors
         />
       </CollapsibleContent>
     </Collapsible>
@@ -229,14 +242,14 @@ export function GenerateMorePlansDialog({
 
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Yêu cầu của bạn</Label>
-            <Textarea
+            <LineEditor
               value={instruction}
-              onChange={(e) =>
-                setStepUserInstruction(USER_KEY, e.target.value)
-              }
+              onChange={(v) => setStepUserInstruction(USER_KEY, v)}
               placeholder="Ý tưởng cho các chương tiếp theo, nhân vật bắt buộc, v.v."
-              rows={3}
-              className="text-sm resize-y"
+              className="h-[88px]"
+              contentFont="text-sm leading-5"
+              gutterFont="text-xs leading-5"
+              xmlColors
             />
           </div>
 

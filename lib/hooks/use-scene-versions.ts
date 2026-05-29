@@ -105,6 +105,46 @@ export async function ensureInitialVersion(
   });
 }
 
+/**
+ * Insert a scene version row directly, without opening a nested transaction.
+ * Safe to call inside an existing Dexie transaction that already holds db.scenes.
+ * Does NOT enforce MAX_VERSIONS — callers that need the limit should use createSceneVersion.
+ */
+export async function insertSceneVersionRow(
+  activeScene: { id: string; chapterId: string; title: string; order: number },
+  novelId: string,
+  type: SceneVersionType,
+  content: string,
+): Promise<void> {
+  const existing = await db.scenes
+    .where("activeSceneId")
+    .equals(activeScene.id)
+    .toArray();
+
+  if (existing.length >= MAX_VERSIONS) return;
+
+  const nextVersion =
+    existing.length === 0
+      ? 1
+      : Math.max(...existing.map((v) => v.version)) + 1;
+
+  await db.scenes.add({
+    id: crypto.randomUUID(),
+    chapterId: activeScene.chapterId,
+    novelId,
+    title: activeScene.title,
+    content,
+    order: activeScene.order,
+    wordCount: content.split(/\s+/).filter(Boolean).length,
+    version: nextVersion,
+    versionType: type,
+    isActive: 0,
+    activeSceneId: activeScene.id,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+}
+
 /** Delete a single version (inactive scene) by ID. */
 export async function deleteSceneVersion(id: string): Promise<void> {
   await db.scenes.delete(id);

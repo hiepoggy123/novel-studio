@@ -2,6 +2,7 @@
 import type { LanguageModel } from "ai";
 import { generateText, stepCountIs } from "ai";
 import { db } from "@/lib/db";
+import { applyStatePatch } from "@/lib/writing/state/state-store";
 import { analyzeChapter, analyzeBatchChapters } from "./chapter-analyzer";
 import { aggregationTools, characterTools } from "./incremental-tools";
 import { getChaptersNeedingAnalysis } from "./incremental";
@@ -577,26 +578,21 @@ export async function analyzeNovelIncremental({
                 const existing = characterByNormalizedName.get(normalizedName);
                 if (!existing) {
                   const newId = crypto.randomUUID();
-                  await db.characters.add({
+                  const charData = {
                     id: newId, novelId,
                     name: input.name, role: input.role, description: input.description,
                     age: input.age, sex: input.sex, appearance: input.appearance,
                     personality: input.personality, hobbies: input.hobbies,
                     relationshipWithMC: input.relationshipWithMC, relationships: input.relationships,
-                    characterArc: input.characterArc, strengths: input.strengths,
+                    strengths: input.strengths,
                     weaknesses: input.weaknesses, motivations: input.motivations, goals: input.goals,
                     createdAt: ts, updatedAt: ts,
-                  });
-                  characterByNormalizedName.set(normalizedName, {
-                    id: newId, novelId,
-                    name: input.name, role: input.role, description: input.description,
-                    age: input.age, sex: input.sex, appearance: input.appearance,
-                    personality: input.personality, hobbies: input.hobbies,
-                    relationshipWithMC: input.relationshipWithMC, relationships: input.relationships,
-                    characterArc: input.characterArc, strengths: input.strengths,
-                    weaknesses: input.weaknesses, motivations: input.motivations, goals: input.goals,
-                    createdAt: ts, updatedAt: ts,
-                  });
+                  };
+                  await db.characters.add(charData);
+                  characterByNormalizedName.set(normalizedName, charData);
+                  if (input.characterArc) {
+                    await applyStatePatch(novelId, [{ name: input.name, currentState: input.characterArc }]);
+                  }
                   summary.charactersAdded++;
                 }
                 break;
@@ -605,12 +601,15 @@ export async function analyzeNovelIncremental({
                 const normalizedName = input.name.toLowerCase().trim();
                 const char = characterByNormalizedName.get(normalizedName);
                 if (char) {
-                  const { name: _, ...updates } = input;
+                  const { name: _, characterArc, ...updates } = input;
                   const filtered = Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined));
                   if (Object.keys(filtered).length > 0) {
                     await db.characters.update(char.id, { ...filtered, updatedAt: ts });
                     characterByNormalizedName.set(normalizedName, { ...char, ...filtered, updatedAt: ts });
                     summary.charactersUpdated++;
+                  }
+                  if (characterArc) {
+                    await applyStatePatch(novelId, [{ name: input.name, currentState: characterArc }]);
                   }
                 }
                 break;

@@ -234,6 +234,11 @@ export interface AnalysisSettings {
   translatePrompt?: string;
   reviewPrompt?: string;
   editPrompt?: string;
+  // Character AI tools
+  characterEnhanceModel?: StepModelConfig;
+  characterGenerateModel?: StepModelConfig;
+  characterEnhancePrompt?: string;
+  characterGeneratePrompt?: string;
 }
 
 // ─── Name Dictionary ─────────────────────────────────────────
@@ -374,6 +379,10 @@ export interface PlotPoint {
   description: string;
   chapterOrder?: number;
   status: "planned" | "in-progress" | "resolved";
+  payoffTiming?: number;
+  expectedPayoff?: string;
+  coreHook?: boolean;
+  lastAdvancedChapter?: number;
 }
 
 export interface PlotArc {
@@ -407,6 +416,7 @@ export interface ChapterPlan {
   scenes: ChapterPlanScene[];
   status: "planned" | "writing" | "written" | "reviewed" | "saved";
   chapterId?: string;
+  intent?: import("@/lib/writing/intent-schema").ChapterIntent;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -426,13 +436,50 @@ export interface CharacterArc {
   updatedAt: Date;
 }
 
+export interface StoryStateCharacter {
+  name: string;
+  currentState: string;
+  location?: string;
+  status?: string;
+}
+
+export interface StoryStateKnownFact {
+  subject: string;
+  predicate: string;
+  object: string;
+  sourceChapter: number;
+}
+
+export interface StoryState {
+  id: string;
+  lastAppliedChapter: number;
+  characterStates: StoryStateCharacter[];
+  worldFacts: string;
+  openConflicts: string[];
+  knownTruths: string[];
+  knownFacts: StoryStateKnownFact[];
+  chapterHashes: Record<string, string>;
+  bootstrapComplete: boolean;
+  updatedAt: Date;
+  incomplete?: boolean;
+  warnings?: string[];
+  auditHistory?: Array<{
+    chapterOrder: number;
+    type: string;
+    description: string;
+    migratedAt: string;
+  }>;
+}
+
 export type WritingAgentRole =
-  | "context"
-  | "direction"
+  | "plan"
   | "outline"
   | "writer"
-  | "review"
-  | "rewrite";
+  | "normalize"
+  | "observe"
+  | "audit"
+  | "revise"
+  | "commit";
 
 export type WritingStepStatus =
   | "pending"
@@ -446,8 +493,6 @@ export type WritingStepStatus =
 export interface WritingSettings {
   id: string;
   chapterLength: number;
-  /** When true, new writing sessions use synthetic context + tool-assisted writer (no context LLM). */
-  smartWritingMode?: boolean;
   /** Max tool rounds for smart writer (UI 5–20); falls back to chat maxToolSteps when unset. */
   smartWriterMaxToolSteps?: number;
   /** When true, new sessions run the pipeline hands-free until review completes. */
@@ -456,18 +501,24 @@ export interface WritingSettings {
   minScoreToAutoAccept?: number;
   /** Max automatic retries from Outline when score is below threshold. Default 2. */
   maxAutoRetries?: number;
-  contextModel?: StepModelConfig;
-  directionModel?: StepModelConfig;
+  planModel?: StepModelConfig;
   outlineModel?: StepModelConfig;
   writerModel?: StepModelConfig;
-  reviewModel?: StepModelConfig;
-  rewriteModel?: StepModelConfig;
-  contextPrompt?: string;
-  directionPrompt?: string;
+  normalizeModel?: StepModelConfig;
+  observeModel?: StepModelConfig;
+  auditModel?: StepModelConfig;
+  reviseModel?: StepModelConfig;
+  polishModel?: StepModelConfig;
+  enablePolish?: boolean;
+  styleFingerprint?: string;
+  planPrompt?: string;
   outlinePrompt?: string;
   writerPrompt?: string;
-  reviewPrompt?: string;
-  rewritePrompt?: string;
+  normalizePrompt?: string;
+  observePrompt?: string;
+  auditPrompt?: string;
+  revisePrompt?: string;
+  polishPrompt?: string;
   // Setup wizard step prompts (auto-generate framework)
   worldBuildingPrompt?: string;
   characterGenPrompt?: string;
@@ -483,11 +534,7 @@ export interface WritingSession {
   chapterPlanId: string;
   currentStep: WritingAgentRole;
   status: "active" | "paused" | "completed" | "error";
-  contextHash?: string;
-  /** Legacy; ignored. Pipeline uses WritingSettings.smartWritingMode each run. */
-  pipelineMode?: "classic" | "smart";
-  /** Legacy; ignored. Pipeline uses WritingSettings.noAskingMode each run. */
-  handsFree?: boolean;
+  stateHash?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -528,10 +575,10 @@ export class NovelStudioDB extends Dexie {
   ttsSettings!: EntityTable<TTSSettings, "id">;
   plotArcs!: EntityTable<PlotArc, "id">;
   chapterPlans!: EntityTable<ChapterPlan, "id">;
-  characterArcs!: EntityTable<CharacterArc, "id">;
   writingSettings!: EntityTable<WritingSettings, "id">;
   writingSessions!: EntityTable<WritingSession, "id">;
   writingStepResults!: EntityTable<WritingStepResult, "id">;
+  storyStates!: EntityTable<StoryState, "id">;
 
   constructor() {
     super("novel-studio");

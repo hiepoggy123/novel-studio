@@ -70,11 +70,11 @@ export function ReviewPanel({
   onRegenerateReviewAction?: () => void;
   isRewriting?: boolean;
 }) {
-  const reviewResult = useStepResult(sessionId, "review");
+  const reviewResult = useStepResult(sessionId, "audit");
   const writerResult = useStepResult(sessionId, "writer");
-  const rewriteResult = useStepResult(sessionId, "rewrite");
+  const rewriteResult = useStepResult(sessionId, "revise");
   const rewriteUserInstruction = useWritingPipelineStore(
-    (s) => s.stepUserInstructions.rewrite ?? "",
+    (s) => s.stepUserInstructions.revise ?? "",
   );
   const setStepUserInstruction = useWritingPipelineStore(
     (s) => s.setStepUserInstruction,
@@ -325,7 +325,7 @@ export function ReviewPanel({
           </Label>
           <Textarea
             value={rewriteUserInstruction}
-            onChange={(e) => setStepUserInstruction("rewrite", e.target.value)}
+            onChange={(e) => setStepUserInstruction("revise", e.target.value)}
             placeholder="Gợi ý thêm cho bước viết lại..."
             rows={2}
             className="text-xs resize-y"

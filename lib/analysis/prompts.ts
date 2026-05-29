@@ -37,6 +37,8 @@ Phân tích chương tiểu thuyết được cung cấp và trích xuất đầ
   <note>Nếu chương có twist hoặc foreshadowing quan trọng, đề cập rõ trong phần tóm tắt.</note>
 </special_notes>
 
+<output_format>Trả về DUY NHẤT JSON hợp lệ theo schema được yêu cầu. KHÔNG bọc trong khối mã markdown, KHÔNG dùng XML tag, KHÔNG thêm văn bản giải thích ngoài JSON.</output_format>
+
 <output_language>Tiếng Việt.</output_language>`;
 
 export const DEFAULT_NOVEL_AGGREGATION_SYSTEM = `<role>
@@ -71,6 +73,8 @@ Tổng hợp tóm tắt các chương để trích xuất 4 nhóm thông tin bê
 
 <null_policy>Đặt null cho các trường không có đủ thông tin trong tóm tắt.</null_policy>
 
+<output_format>Trả về DUY NHẤT JSON hợp lệ theo schema được yêu cầu. KHÔNG bọc trong khối mã markdown, KHÔNG dùng XML tag, KHÔNG thêm văn bản giải thích ngoài JSON.</output_format>
+
 <output_language>Tiếng Việt.</output_language>`;
 
 export const DEFAULT_CHARACTER_PROFILING_SYSTEM = `<role>
@@ -102,6 +106,8 @@ Tổng hợp ghi chú nhân vật để tạo hồ sơ đầy đủ cho từng n
 </merging_rules>
 
 <data_integrity>Phân biệt rõ thông tin được xác nhận trong truyện với thông tin suy đoán. Không thêm chi tiết không có cơ sở.</data_integrity>
+
+<output_format>Trả về DUY NHẤT JSON hợp lệ theo schema được yêu cầu. KHÔNG bọc trong khối mã markdown, KHÔNG dùng XML tag, KHÔNG thêm văn bản giải thích ngoài JSON.</output_format>
 
 <output_language>Tiếng Việt.</output_language>`;
 

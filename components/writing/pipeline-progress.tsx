@@ -16,6 +16,7 @@ import {
   SearchCheckIcon,
   XCircleIcon,
 } from "lucide-react";
+
 import { useMemo } from "react";
 
 const STEPS: {
@@ -23,11 +24,14 @@ const STEPS: {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
-  { role: "context", label: "Bối cảnh", icon: BookOpenIcon },
-  { role: "direction", label: "Hướng đi", icon: CompassIcon },
+  { role: "plan", label: "Kế hoạch", icon: CompassIcon },
   { role: "outline", label: "Giàn ý", icon: ListTreeIcon },
   { role: "writer", label: "Viết", icon: PenLineIcon },
-  { role: "review", label: "Đánh giá", icon: SearchCheckIcon },
+  { role: "normalize", label: "Chuẩn hóa", icon: BookOpenIcon },
+  { role: "observe", label: "Quan sát", icon: SearchCheckIcon },
+  { role: "audit", label: "Đánh giá", icon: SearchCheckIcon },
+  { role: "revise", label: "Viết lại", icon: PenLineIcon },
+  { role: "commit", label: "Lưu", icon: CircleDotIcon },
 ];
 
 function StatusIcon({ status }: { status: WritingStepStatus | undefined }) {

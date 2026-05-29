@@ -69,7 +69,7 @@ export interface OutlineAgentOutput {
 // ─── Review Agent ───────────────────────────────────────────
 
 export interface ReviewIssue {
-  type: "character" | "plot" | "tone" | "world-rules";
+  type: "character" | "plot" | "tone" | "world-rules" | "pacing" | "pov" | "dialogue";
   severity: "critical" | "minor" | "suggestion";
   description: string;
   location: string;
@@ -91,6 +91,15 @@ export interface RewriteAgentOutput {
 
 export interface RewriteTargetOptions {
   /** Indices into ReviewAgentOutput.issues that the rewrite should target. Undefined = rewrite all. */
+  targetIssueIndices?: number[];
+}
+
+export interface RewriteOptions {
+  novelId: string;
+  sessionId: string;
+  abortSignal?: AbortSignal;
+  onChunk?: (text: string) => void;
+  userInstruction?: string;
   targetIssueIndices?: number[];
 }
 

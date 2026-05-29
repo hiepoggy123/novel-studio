@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { withGlobalInstruction } from "@/lib/ai/system-prompt";
 import { appendUserInstructionToPrompt } from "@/lib/writing/append-user-instruction";
 import { buildWritingContext } from "../context-builder";
+import { getOrComputeFingerprint } from "@/lib/writing/style/style-store";
 import type { AgentConfig, ContextAgentOutput, OutlineAgentOutput } from "../types";
 
 /** Hard cap so the user prompt stays within typical model context limits. */
@@ -22,12 +23,13 @@ export async function runWriterAgent(
 ): Promise<string> {
   const { novelId, chapterOrder, contextOutput, outline } = input;
 
-  const [writingContext, chapterPlan] = await Promise.all([
+  const [writingContext, chapterPlan, fingerprint] = await Promise.all([
     buildWritingContext(novelId, chapterOrder, "standard"),
     db.chapterPlans
       .where("[novelId+chapterOrder]")
       .equals([novelId, chapterOrder])
       .first(),
+    getOrComputeFingerprint(novelId),
   ]);
 
   let referenceBlock = writingContext.context;
@@ -99,9 +101,15 @@ ${outlineText}
   <req>Viết bằng Tiếng Việt.</req>
 </requirements>`;
 
+  const fingerprintBlock = fingerprint
+    ? `\n\n<style_fingerprint note="phong cách phát hiện từ các chương hiện có — bám sát làm hướng dẫn mềm">\n${fingerprint}\n</style_fingerprint>`
+    : "";
+
+  const systemWithFingerprint = config.systemPrompt + fingerprintBlock;
+
   const result = streamText({
     model: config.model,
-    system: withGlobalInstruction(config.systemPrompt, config.globalInstruction),
+    system: withGlobalInstruction(systemWithFingerprint, config.globalInstruction),
     prompt: appendUserInstructionToPrompt(basePrompt, config.userInstruction),
     abortSignal: config.abortSignal,
   });

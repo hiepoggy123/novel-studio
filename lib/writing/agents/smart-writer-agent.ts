@@ -2,6 +2,7 @@ import { createNovelReadTools } from "@/lib/ai/novel-read-tools";
 import { withGlobalInstruction } from "@/lib/ai/system-prompt";
 import { db } from "@/lib/db";
 import { appendUserInstructionToPrompt } from "@/lib/writing/append-user-instruction";
+import { getOrComputeFingerprint } from "@/lib/writing/style/style-store";
 import {
   buildSmartWriterUserPrompt,
   SMART_WRITER_TOOL_LIMIT_MESSAGE,
@@ -10,6 +11,8 @@ import {
   getSmartWriterToolLabelVi,
   SMART_WRITER_WRITING_LABEL_VI,
 } from "@/lib/writing/smart-writer-tool-labels";
+import { formatChapterIntent } from "@/lib/writing/intent-schema";
+import { flattenHookTitles } from "@/lib/writing/state/hook-pressure";
 import { stepCountIs, streamText } from "ai";
 import type {
   AgentConfig,
@@ -38,13 +41,20 @@ export async function runSmartWriterAgent(
 ): Promise<string> {
   const { novelId, chapterOrder, contextOutput, outline } = input;
 
-  const [chapterPlan, allCharacters] = await Promise.all([
+  const [chapterPlan, allCharacters, plotArcs, fingerprint] = await Promise.all([
     db.chapterPlans
       .where("[novelId+chapterOrder]")
       .equals([novelId, chapterOrder])
       .first(),
     db.characters.where("novelId").equals(novelId).toArray(),
+    db.plotArcs.where("novelId").equals(novelId).toArray(),
+    getOrComputeFingerprint(novelId),
   ]);
+
+  const intentBlock = formatChapterIntent(
+    chapterPlan?.intent,
+    flattenHookTitles(plotArcs),
+  );
 
   const characterNameList =
     allCharacters.length > 0
@@ -97,16 +107,20 @@ Số từ: ~${s.wordCountTarget} từ`,
     characterNameList,
     contextSummary,
     directionsBlock,
+    intentBlock,
     synopsis: outline.synopsis,
     outlineText,
     totalWordCountTarget: outline.totalWordCountTarget,
     chapterLength,
   });
 
-  const systemPrompt = config.systemPrompt.replace(
-    "{chapterLength}",
-    String(chapterLength),
-  );
+  const fingerprintBlock = fingerprint
+    ? `\n\n<style_fingerprint note="phong cách phát hiện từ các chương hiện có — bám sát làm hướng dẫn mềm">\n${fingerprint}\n</style_fingerprint>`
+    : "";
+
+  const systemPrompt =
+    config.systemPrompt.replace("{chapterLength}", String(chapterLength)) +
+    fingerprintBlock;
 
   const tools = createNovelReadTools(novelId);
   const userContent = appendUserInstructionToPrompt(

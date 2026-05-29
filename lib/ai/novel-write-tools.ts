@@ -1,4 +1,5 @@
 import { db, type CharacterRelationship, type NameDescription } from "@/lib/db";
+import { applyStatePatch } from "@/lib/writing/state/state-store";
 import { tool } from "ai";
 import { z } from "zod";
 
@@ -231,11 +232,11 @@ export function createNovelWriteTools(novelId: string) {
         relationships: z
           .array(z.object({ characterName: z.string(), description: z.string() }))
           .optional(),
-        characterArc: z.string().optional(),
         strengths: z.string().optional(),
         weaknesses: z.string().optional(),
         motivations: z.string().optional(),
         goals: z.string().optional(),
+        currentState: z.string().optional(),
       }),
       execute: async (input) => {
         const existing = await findCharacterByName(novelId, input.name);
@@ -256,7 +257,6 @@ export function createNovelWriteTools(novelId: string) {
           hobbies: input.hobbies,
           relationshipWithMC: input.relationshipWithMC,
           relationships: input.relationships,
-          characterArc: input.characterArc,
           strengths: input.strengths,
           weaknesses: input.weaknesses,
           motivations: input.motivations,
@@ -264,6 +264,10 @@ export function createNovelWriteTools(novelId: string) {
           createdAt: now,
           updatedAt: now,
         });
+
+        if (input.currentState) {
+          await applyStatePatch(novelId, [{ name: input.name, currentState: input.currentState }]);
+        }
 
         return { ok: true, characterId: id, name: input.name };
       },
@@ -282,29 +286,41 @@ export function createNovelWriteTools(novelId: string) {
         personality: z.string().optional(),
         hobbies: z.string().optional(),
         relationshipWithMC: z.string().optional(),
-        characterArc: z.string().optional(),
         strengths: z.string().optional(),
         weaknesses: z.string().optional(),
         motivations: z.string().optional(),
         goals: z.string().optional(),
+        currentState: z.string().optional(),
+        location: z.string().optional(),
+        status: z.string().optional(),
       }),
-      execute: async ({ name, ...updates }) => {
+      execute: async ({ name, currentState, location, status, ...profileUpdates }) => {
         const character = await findCharacterByName(novelId, name);
         if (!character) return { error: "Không tìm thấy nhân vật" };
 
-        const hasChanges = Object.keys(updates).length > 0;
-        if (!hasChanges)
+        const hasProfileChanges = Object.keys(profileUpdates).length > 0;
+        const hasStateChanges = currentState !== undefined || location !== undefined || status !== undefined;
+
+        if (!hasProfileChanges && !hasStateChanges)
           return { ok: false, message: "Không có trường nào để cập nhật" };
 
-        await db.characters.update(character.id, {
-          ...updates,
-          updatedAt: new Date(),
-        });
+        if (hasProfileChanges) {
+          await db.characters.update(character.id, {
+            ...profileUpdates,
+            updatedAt: new Date(),
+          });
+        }
+
+        if (hasStateChanges) {
+          await applyStatePatch(novelId, [
+            { name, ...(currentState !== undefined ? { currentState } : {}), ...(location !== undefined ? { location } : {}), ...(status !== undefined ? { status } : {}) },
+          ]);
+        }
 
         return {
           ok: true,
           characterId: character.id,
-          updatedFields: Object.keys(updates),
+          updatedFields: [...Object.keys(profileUpdates), ...(hasStateChanges ? ["state"] : [])],
         };
       },
     }),

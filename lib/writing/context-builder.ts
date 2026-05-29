@@ -60,13 +60,12 @@ export async function buildWritingContext(
 ): Promise<WritingContext> {
   const config = BUDGET_CONFIG[depth];
 
-  const [novel, chapters, characters, plotArcs, characterArcs] =
+  const [novel, chapters, characters, plotArcs] =
     await Promise.all([
       db.novels.get(novelId),
       db.chapters.where("novelId").equals(novelId).sortBy("order"),
       db.characters.where("novelId").equals(novelId).toArray(),
       db.plotArcs.where("novelId").equals(novelId).toArray(),
-      db.characterArcs.where("novelId").equals(novelId).toArray(),
     ]);
 
   if (!novel) throw new Error("Novel not found");
@@ -110,24 +109,15 @@ export async function buildWritingContext(
     let charTokens = 0;
 
     for (const char of characters) {
-      const arc = characterArcs.find((a) => a.characterId === char.id);
       let profile = `### ${char.name} (${char.role})`;
       if (char.personality) profile += `\nTính cách: ${char.personality}`;
       if (char.motivations) profile += `\nĐộng lực: ${char.motivations}`;
       if (char.goals) profile += `\nMục tiêu: ${char.goals}`;
       if (char.strengths) profile += `\nĐiểm mạnh: ${char.strengths}`;
       if (char.weaknesses) profile += `\nĐiểm yếu: ${char.weaknesses}`;
+      if (char.characterArc) profile += `\nHành trình: ${char.characterArc}`;
       if (char.relationships?.length) {
         profile += `\nQuan hệ: ${char.relationships.map((r) => `${r.characterName} - ${r.description}`).join("; ")}`;
-      }
-      if (arc?.trajectory) {
-        profile += `\nHành trình: ${arc.trajectory}`;
-        if (arc.developments?.length > 0) {
-          const recent = [...arc.developments]
-            .sort((a, b) => b.chapterOrder - a.chapterOrder)
-            .slice(0, 3);
-          profile += `\nPhát triển gần đây: ${recent.map((d) => `Ch.${d.chapterOrder}: ${d.description}`).join("; ")}`;
-        }
       }
 
       const tokens = estimateTokens(profile);

@@ -1,35 +1,32 @@
 import { db } from "@/lib/db";
 import { countWords } from "@/lib/utils";
+import { createSceneVersion, insertSceneVersionRow } from "@/lib/hooks/use-scene-versions";
 import type { OutlineAgentOutput } from "./types";
 
-/**
- * Save the completed chapter to existing Chapter + Scene entities.
- * Uses rewrite content if available, otherwise writer content.
- */
+export interface SavedChapterResult {
+  chapterId: string;
+  sceneId: string;
+}
+
 export async function saveGeneratedChapter(options: {
   novelId: string;
   sessionId: string;
   chapterPlanId: string;
   outline: OutlineAgentOutput;
-}): Promise<string> {
+}): Promise<SavedChapterResult> {
   const { novelId, sessionId, chapterPlanId, outline } = options;
 
   const chapterPlan = await db.chapterPlans.get(chapterPlanId);
   if (!chapterPlan) throw new Error("Chapter plan not found");
 
-  // Prefer rewrite content over writer content
-  const [rewriteResult, writerResult, reviewResult] = await Promise.all([
+  const [rewriteResult, writerResult] = await Promise.all([
     db.writingStepResults
       .where("[sessionId+role]")
-      .equals([sessionId, "rewrite"])
+      .equals([sessionId, "revise"])
       .first(),
     db.writingStepResults
       .where("[sessionId+role]")
       .equals([sessionId, "writer"])
-      .first(),
-    db.writingStepResults
-      .where("[sessionId+role]")
-      .equals([sessionId, "review"])
       .first(),
   ]);
 
@@ -40,10 +37,55 @@ export async function saveGeneratedChapter(options: {
 
   if (!finalContent) throw new Error("No content to save");
 
+  return upsertChapterWithScene({
+    novelId,
+    chapterPlanId,
+    chapterPlan,
+    outline,
+    content: finalContent,
+  });
+}
+
+export interface UpsertChapterOptions {
+  novelId: string;
+  chapterPlanId: string;
+  chapterPlan: { chapterId?: string; chapterOrder: number };
+  outline: OutlineAgentOutput;
+  content: string;
+}
+
+export async function upsertChapterWithScene(
+  options: UpsertChapterOptions,
+): Promise<SavedChapterResult> {
+  const { novelId, chapterPlanId, chapterPlan, outline, content } = options;
   const now = new Date();
 
-  // Create Chapter
+  if (chapterPlan.chapterId) {
+    const chapterRow = await db.chapters.get(chapterPlan.chapterId);
+    const activeScene = chapterRow
+      ? await db.scenes
+          .where("[chapterId+isActive]")
+          .equals([chapterPlan.chapterId, 1])
+          .first()
+      : undefined;
+
+    if (chapterRow && activeScene) {
+      await createSceneVersion(activeScene.id, novelId, "ai-write", content);
+
+      await db.scenes.update(activeScene.id, {
+        content,
+        wordCount: countWords(content),
+        updatedAt: now,
+      });
+
+      return { chapterId: chapterPlan.chapterId, sceneId: activeScene.id };
+    }
+    // Referenced chapter was deleted — fall through and create a fresh one.
+  }
+
   const chapterId = crypto.randomUUID();
+  const sceneId = crypto.randomUUID();
+
   await db.chapters.add({
     id: chapterId,
     novelId,
@@ -54,16 +96,14 @@ export async function saveGeneratedChapter(options: {
     updatedAt: now,
   });
 
-  // Create Scene (single scene with all content)
-  const sceneId = crypto.randomUUID();
   await db.scenes.add({
     id: sceneId,
     chapterId,
     novelId,
     title: outline.chapterTitle,
-    content: finalContent,
+    content,
     order: 1,
-    wordCount: countWords(finalContent),
+    wordCount: countWords(content),
     version: 1,
     versionType: "ai-write",
     isActive: 1,
@@ -71,37 +111,78 @@ export async function saveGeneratedChapter(options: {
     updatedAt: now,
   });
 
-  // Link ChapterPlan to Chapter
   await db.chapterPlans.update(chapterPlanId, {
     chapterId,
     status: "saved",
     updatedAt: now,
   });
 
-  // Persist non-suggestion review issues for cross-session context memory
-  if (reviewResult?.output) {
-    try {
-      const reviewOutput = JSON.parse(reviewResult.output) as {
-        issues: Array<{ type: string; severity: string; description: string }>;
-      };
-      const newIssues = reviewOutput.issues
-        .filter((i) => i.severity !== "suggestion")
-        .map((i) => ({
-          chapterOrder: chapterPlan.chapterOrder,
-          type: i.type,
-          description: i.description,
-        }));
-      if (newIssues.length > 0) {
-        const novel = await db.novels.get(novelId);
-        const existing = novel?.reviewIssues ?? [];
-        // Keep last 20 issues total (rolling window)
-        const merged = [...existing, ...newIssues].slice(-20);
-        await db.novels.update(novelId, { reviewIssues: merged });
-      }
-    } catch {
-      // Non-critical — don't fail save if issue persistence fails
+  return { chapterId, sceneId };
+}
+
+export interface UpsertInsideTxnOptions {
+  novelId: string;
+  chapterPlan: { chapterId?: string; chapterOrder: number };
+  outline: OutlineAgentOutput;
+  content: string;
+}
+
+export async function upsertChapterInsideTxn(
+  options: UpsertInsideTxnOptions,
+): Promise<SavedChapterResult> {
+  const { novelId, chapterPlan, outline, content } = options;
+  const now = new Date();
+
+  if (chapterPlan.chapterId) {
+    const chapterRow = await db.chapters.get(chapterPlan.chapterId);
+    const activeScene = chapterRow
+      ? await db.scenes
+          .where("[chapterId+isActive]")
+          .equals([chapterPlan.chapterId, 1])
+          .first()
+      : undefined;
+
+    if (chapterRow && activeScene) {
+      await insertSceneVersionRow(activeScene, novelId, "ai-write", content);
+
+      await db.scenes.update(activeScene.id, {
+        content,
+        wordCount: countWords(content),
+        updatedAt: now,
+      });
+
+      return { chapterId: chapterPlan.chapterId, sceneId: activeScene.id };
     }
+    // Referenced chapter was deleted — fall through and create a fresh one.
   }
 
-  return chapterId;
+  const chapterId = crypto.randomUUID();
+  const sceneId = crypto.randomUUID();
+
+  await db.chapters.add({
+    id: chapterId,
+    novelId,
+    title: outline.chapterTitle,
+    order: chapterPlan.chapterOrder,
+    summary: outline.synopsis,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await db.scenes.add({
+    id: sceneId,
+    chapterId,
+    novelId,
+    title: outline.chapterTitle,
+    content,
+    order: 1,
+    wordCount: countWords(content),
+    version: 1,
+    versionType: "ai-write",
+    isActive: 1,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return { chapterId, sceneId };
 }

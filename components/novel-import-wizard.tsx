@@ -22,6 +22,7 @@ import {
   testPattern,
   type ChapterCandidate,
 } from "@/lib/import";
+import { importNovel } from "@/lib/novel-io";
 import {
   CheckIcon,
   EyeIcon,
@@ -62,6 +63,8 @@ function countWords(text: string): number {
 export function NovelImportWizard() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const jsonInputRef = useRef<HTMLInputElement>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   // Wizard state
   const fullTextRef = useRef("");
@@ -136,6 +139,27 @@ export function NovelImportWizard() {
     setHasText(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
+
+  const handleJsonRestore = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      e.target.value = "";
+      setIsRestoring(true);
+      try {
+        const novelId = await importNovel(file);
+        toast.success("Đã khôi phục tiểu thuyết từ tệp sao lưu");
+        router.push(`/novels/${novelId}`);
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Khôi phục thất bại",
+        );
+      } finally {
+        setIsRestoring(false);
+      }
+    },
+    [router],
+  );
 
   const handlePasteChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -315,6 +339,13 @@ export function NovelImportWizard() {
         className="hidden"
         onChange={handleFileUpload}
       />
+      <input
+        ref={jsonInputRef}
+        type="file"
+        accept=".json,application/json"
+        className="hidden"
+        onChange={handleJsonRestore}
+      />
 
       {/* Step 1: Input */}
       {step === "input" && (
@@ -396,6 +427,28 @@ export function NovelImportWizard() {
                 </p>
               </div>
             ) : null}
+
+            <Separator />
+
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">Khôi phục từ tệp sao lưu</p>
+                <p className="text-xs text-muted-foreground">
+                  Nhập tệp .json đã xuất từ Novel Studio (giữ nguyên chương,
+                  nhân vật, ghi chú...).
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isRestoring}
+                onClick={() => jsonInputRef.current?.click()}
+                className="shrink-0"
+              >
+                <UploadIcon className="mr-1.5 size-3.5" />
+                {isRestoring ? "Đang khôi phục..." : "Chọn tệp .json"}
+              </Button>
+            </div>
 
             <div className="flex justify-end">
               <Button

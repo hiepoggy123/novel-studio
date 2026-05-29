@@ -94,9 +94,9 @@ export async function resetWritingSessionProgress(sessionId: string) {
     async () => {
       await db.writingStepResults.where("sessionId").equals(sessionId).delete();
       await db.writingSessions.update(sessionId, {
-        currentStep: "context",
+        currentStep: "plan",
         status: "active",
-        contextHash: undefined,
+        stateHash: undefined,
         updatedAt: now,
       });
       await db.chapterPlans.update(session.chapterPlanId, {

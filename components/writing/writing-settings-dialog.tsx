@@ -54,21 +54,15 @@ function clampSmartWriterSteps(n: number): number {
 }
 
 const AGENT_ROLES: {
-  role: WritingAgentRole;
+  role: ConfigurableRole;
   label: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
   {
-    role: "context",
-    label: "Bối cảnh",
-    description: "Tổng hợp bối cảnh từ chương trước",
-    icon: BookOpenIcon,
-  },
-  {
-    role: "direction",
-    label: "Hướng đi",
-    description: "Đề xuất hướng phát triển chương",
+    role: "plan",
+    label: "Kế hoạch",
+    description: "Phân tích cốt truyện và đề xuất hướng đi",
     icon: CompassIcon,
   },
   {
@@ -84,28 +78,42 @@ const AGENT_ROLES: {
     icon: PenLineIcon,
   },
   {
-    role: "review",
-    label: "Đánh giá",
-    description: "Đánh giá chương theo 4 tiêu chí",
+    role: "normalize",
+    label: "Chuẩn hóa",
+    description: "Chuẩn hóa độ dài và định dạng",
+    icon: BookOpenIcon,
+  },
+  {
+    role: "observe",
+    label: "Quan sát",
+    description: "Phân tích thay đổi trạng thái truyện",
     icon: SearchCheckIcon,
   },
   {
-    role: "rewrite",
+    role: "audit",
+    label: "Đánh giá",
+    description: "Đánh giá chất lượng chương",
+    icon: SearchCheckIcon,
+  },
+  {
+    role: "revise",
     label: "Viết lại",
     description: "Viết lại chương dựa trên đánh giá",
     icon: PenLineIcon,
   },
 ];
 
+type ConfigurableRole = Exclude<WritingAgentRole, "commit">;
+
 function StepModelPicker({
   novelId,
   role,
 }: {
   novelId: string;
-  role: WritingAgentRole;
+  role: ConfigurableRole;
 }) {
   const settings = useWritingSettings(novelId);
-  const modelKey = `${role}Model` as const;
+  const modelKey = `${role}Model` as keyof typeof settings;
   const value = settings?.[modelKey] as StepModelConfig | undefined;
   const providers = useApiInferenceProviders();
   const selectedProviderId = value?.providerId ?? "";
@@ -231,10 +239,9 @@ export function WritingSettingsDialog({
 }) {
   const settings = useWritingSettings(novelId);
   const chapterLength = settings?.chapterLength ?? 3000;
-  const smartWritingMode = settings?.smartWritingMode ?? false;
   const smartWriterMaxToolSteps = settings?.smartWriterMaxToolSteps;
   const noAskingMode = settings?.noAskingMode ?? false;
-  const [activeRole, setActiveRole] = useState<WritingAgentRole>("context");
+  const [activeRole, setActiveRole] = useState<ConfigurableRole>("plan");
 
   const sliderSteps = clampSmartWriterSteps(smartWriterMaxToolSteps ?? 12);
 
@@ -243,8 +250,8 @@ export function WritingSettingsDialog({
   }
 
   const debouncedPromptChange = useDebouncedCallback(
-    async (role: WritingAgentRole, value: string) => {
-      const key = `${role}Prompt` as const;
+    async (role: ConfigurableRole, value: string) => {
+      const key = `${role}Prompt` as keyof Parameters<typeof updateWritingSettings>[1];
       const defaultPrompt = getDefaultPrompt(role);
       await updateWritingSettings(novelId, {
         [key]: value === defaultPrompt ? undefined : value,
@@ -257,20 +264,6 @@ export function WritingSettingsDialog({
     await updateWritingSettings(novelId, { chapterLength: value });
   };
 
-  const handleSmartModeChange = async (checked: boolean) => {
-    await updateWritingSettings(novelId, {
-      smartWritingMode: checked,
-      ...(checked
-        ? {
-            smartWriterMaxToolSteps:
-              smartWriterMaxToolSteps != null
-                ? clampSmartWriterSteps(smartWriterMaxToolSteps)
-                : 12,
-          }
-        : { smartWriterMaxToolSteps: undefined }),
-    });
-  };
-
   const handleSmartMaxStepsChange = async (value: number) => {
     await updateWritingSettings(novelId, {
       smartWriterMaxToolSteps: clampSmartWriterSteps(value),
@@ -281,19 +274,19 @@ export function WritingSettingsDialog({
     await updateWritingSettings(novelId, { noAskingMode: checked });
   };
 
-  const handleResetPrompt = async (role: WritingAgentRole) => {
-    const key = `${role}Prompt` as const;
+  const handleResetPrompt = async (role: ConfigurableRole) => {
+    const key = `${role}Prompt` as keyof Parameters<typeof updateWritingSettings>[1];
     await updateWritingSettings(novelId, { [key]: undefined });
   };
 
-  const getPromptValue = (role: WritingAgentRole): string => {
-    const key = `${role}Prompt` as const;
+  const getPromptValue = (role: ConfigurableRole): string => {
+    const key = `${role}Prompt` as keyof typeof settings;
     const custom = settings?.[key] as string | undefined;
     return custom || getDefaultPrompt(role);
   };
 
-  const isCustomPrompt = (role: WritingAgentRole): boolean => {
-    const key = `${role}Prompt` as const;
+  const isCustomPrompt = (role: ConfigurableRole): boolean => {
+    const key = `${role}Prompt` as keyof typeof settings;
     return !!(settings?.[key] as string | undefined);
   };
 
@@ -366,28 +359,6 @@ export function WritingSettingsDialog({
                   </p>
                   <div className="flex items-start gap-3">
                     <Switch
-                      id="smart-writing"
-                      className="mt-0.5"
-                      checked={smartWritingMode}
-                      onCheckedChange={handleSmartModeChange}
-                    />
-                    <div className="space-y-0.5">
-                      <Label
-                        htmlFor="smart-writing"
-                        className="text-sm cursor-pointer font-medium leading-snug"
-                      >
-                        Viết thông minh
-                      </Label>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        Tra cứu tiểu thuyết bằng công cụ, không gọi LLM bước bối
-                        cảnh. Áp dụng theo cài đặt hiện tại mỗi lần chạy hoặc
-                        tiếp tục pipeline.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <Switch
                       id="no-asking"
                       className="mt-0.5"
                       checked={noAskingMode}
@@ -407,15 +378,10 @@ export function WritingSettingsDialog({
                     </div>
                   </div>
 
-                  <div
-                    className={cn(
-                      "space-y-3 pt-1 border-t border-border/60",
-                      !smartWritingMode && "opacity-50 pointer-events-none",
-                    )}
-                  >
+                  <div className="space-y-3 pt-1 border-t border-border/60">
                     <div className="flex items-center justify-between gap-4">
                       <Label className="text-sm font-medium">
-                        Giới hạn bước công cụ (smart writer)
+                        Giới hạn bước công cụ (bước Viết)
                       </Label>
                       <span className="tabular-nums text-sm font-semibold text-foreground min-w-[2ch] text-right">
                         {sliderSteps}
@@ -430,15 +396,13 @@ export function WritingSettingsDialog({
                         const n = v[0];
                         if (n != null) void handleSmartMaxStepsChange(n);
                       }}
-                      disabled={!smartWritingMode}
-                      aria-label="Giới hạn bước công cụ smart writer"
+                      aria-label="Giới hạn bước công cụ"
                     />
                     <p className="text-xs text-muted-foreground">
                       <span className="mr-0.5">
                         {SMART_WRITER_MIN_STEPS}–{SMART_WRITER_MAX_STEPS}
                       </span>
-                      vòng gọi công cụ mỗi lần viết. Khi tắt &quot;Viết thông
-                      minh&quot;, giá trị không dùng.
+                      vòng gọi công cụ mỗi lần viết.
                     </p>
                   </div>
                 </div>

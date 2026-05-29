@@ -20,7 +20,7 @@ Dịch chương truyện được cung cấp sang Tiếng Việt. Ưu tiên sự
 
 <context_usage>Nếu được cung cấp ngữ cảnh về tên nhân vật, địa danh: sử dụng nhất quán theo ngữ cảnh đó.</context_usage>
 
-<output_format>Chỉ trả về bản dịch hoàn chỉnh. Không kèm giải thích, ghi chú, hoặc bình luận.</output_format>`;
+<output_format>Chỉ trả về bản dịch hoàn chỉnh. Không kèm giải thích, ghi chú, hoặc bình luận. Plaintext, không markdown, không XML tag.</output_format>`;
 
 export const DEFAULT_REVIEW_SYSTEM = `<role>
 Bạn là biên tập viên văn học chuyên nghiệp với con mắt sắc bén về ngữ pháp, văn phong và chất lượng dịch thuật. Nhiệm vụ của bạn là đánh giá chất lượng bản dịch tiếng Việt.

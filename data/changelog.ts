@@ -65,6 +65,64 @@ export const CATEGORY_META: Record<
 
 export const changelog: ChangelogRelease[] = [
   {
+    version: "0.12.0",
+    date: "2026-05-30",
+    title: "Auto-Write 2.0 — Viết truyện nhất quán & chuyên nghiệp",
+    summary:
+      "Đại tu toàn diện quy trình viết tự động. AI giờ ghi nhớ và bám sát một bộ nhớ truyện thống nhất thay vì đoán lại bối cảnh mỗi chương, giúp truyện liền mạch hơn, không bỏ rơi tình tiết đã gài, văn phong tự nhiên hơn và mỗi chương có cấu trúc chặt chẽ hơn.",
+    changes: [
+      {
+        category: "feature",
+        description: "Bộ nhớ truyện thống nhất — chống lạc cốt truyện",
+        details:
+          "AI lưu một bản tóm tắt trạng thái truyện gồm trạng thái nhân vật, luật thế giới, mâu thuẫn đang mở và các sự thật đã xác lập. Mỗi chương mới đọc từ bộ nhớ này thay vì đoán lại bối cảnh, nên nhân vật và thiết lập không còn mâu thuẫn nhau qua nhiều chương.",
+        tags: ["viết truyện", "AI", "nhất quán"],
+      },
+      {
+        category: "feature",
+        description: "Theo dõi tình tiết gài (plot hook) đã hứa",
+        details:
+          "Mỗi tình tiết được gài sẽ được ghi nhận thời điểm dự kiến hồi đáp. Những tình tiết quá hạn chưa được giải quyết sẽ được làm nổi bật để bạn không bỏ quên — khắc phục tình trạng AI gài rồi quên trả.",
+        tags: ["viết truyện", "cốt truyện"],
+      },
+      {
+        category: "feature",
+        description: "Quy trình viết mới với khâu Quan sát & Đánh giá",
+        details:
+          "Mỗi chương đi qua các bước: Lập kế hoạch → Giàn ý → Viết → Quan sát → Đánh giá → (Viết lại nếu cần) → Ghi nhận. Sau khi viết, một AI quan sát tự rút ra thay đổi trạng thái từ chương vừa viết và cập nhật vào bộ nhớ truyện một cách an toàn.",
+        tags: ["viết truyện", "AI", "pipeline"],
+      },
+      {
+        category: "improvement",
+        description: "Đánh giá chương đa tiêu chí",
+        details:
+          "Khâu đánh giá nay chấm điểm trên nhiều khía cạnh (nhịp truyện, văn phong, nhất quán POV, hội thoại, sáo rỗng, dồn nén tình tiết...) và đối chiếu với bộ nhớ truyện. Có thể yêu cầu viết lại nhắm đúng vấn đề được nêu.",
+        tags: ["viết truyện", "đánh giá"],
+      },
+      {
+        category: "improvement",
+        description: "Văn phong tự nhiên hơn, giảm giọng văn AI",
+        details:
+          "Bổ sung bộ lọc các cụm từ sáo rỗng, lặp lại thường gặp và phân tích phong cách từ chương đã viết để định hình giọng văn. Tùy chọn bước trau chuốt giúp câu chữ bớt máy móc, đậm chất tiểu thuyết hơn.",
+        tags: ["viết truyện", "văn phong"],
+      },
+      {
+        category: "improvement",
+        description: "Kiểm soát độ dài chương",
+        details:
+          "Đặt độ dài mục tiêu cùng giới hạn mềm/cứng cho mỗi chương. Khi chương vượt ngoài khoảng cho phép, AI tự chuẩn hóa lại độ dài.",
+        tags: ["viết truyện", "tùy chỉnh"],
+      },
+      {
+        category: "breaking",
+        description: "Nâng cấp cấu trúc dữ liệu Auto-Write",
+        details:
+          "Dữ liệu viết truyện cũ (mạch nhân vật, ghi chú đánh giá) được tự động chuyển sang bộ nhớ truyện mới khi mở ứng dụng. Phiên viết đang dở sẽ được đưa về bước đầu để tương thích quy trình mới. Khuyến nghị sao lưu dữ liệu trước khi cập nhật.",
+        tags: ["cơ sở dữ liệu", "viết truyện"],
+      },
+    ],
+  },
+  {
     version: "0.11.1",
     date: "2026-04-07",
     title: "Trang chủ mới, Cài đặt AI & Cải thiện Auto-Write",

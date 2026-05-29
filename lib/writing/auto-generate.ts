@@ -4,7 +4,8 @@ import {
 } from "@/lib/ai/api-inference";
 import { resolveStep } from "@/lib/ai/resolve-step";
 import { db } from "@/lib/db";
-import type { WritingAgentRole } from "@/lib/db";
+import { getNextChapterOrder } from "@/lib/hooks/use-chapter-plans";
+import type { WritingAgentRole, Chapter } from "@/lib/db";
 import { withGlobalInstruction } from "@/lib/ai/system-prompt";
 import { generateStructured } from "@/lib/ai/structured";
 import { appendUserInstructionToPrompt } from "@/lib/writing/append-user-instruction";
@@ -191,15 +192,14 @@ async function getModelForRole(
   role: WritingAgentRole,
 ): Promise<LanguageModel> {
   const settings = await db.writingSettings.get(novelId);
-  const stepModelKey = `${role}Model` as const;
-  const stepConfig = settings?.[stepModelKey];
+  const stepModelKey = `${role}Model` as keyof typeof settings;
+  const stepConfig = settings?.[stepModelKey] as import("@/lib/db").StepModelConfig | undefined;
   if (stepConfig) {
     const model = await resolveStep(stepConfig);
     if (model) return model;
   }
-  // Fallback to global default settings
   const globalSettings = await db.writingSettings.get("global-default");
-  const globalConfig = globalSettings?.[stepModelKey];
+  const globalConfig = globalSettings?.[stepModelKey] as import("@/lib/db").StepModelConfig | undefined;
   if (globalConfig) {
     const model = await resolveStep(globalConfig);
     if (model) return model;
@@ -229,7 +229,7 @@ async function getGlobalInstruction(): Promise<string | undefined> {
 export async function generateWorldBuilding(
   options: GenerateFrameworkOptions,
 ): Promise<WorldBuildingResult> {
-  const model = await getModelForRole(options.novelId, "context");
+  const model = await getModelForRole(options.novelId, "plan");
   const globalInstruction = await getGlobalInstruction();
 
   const basePrompt = `Thể loại: ${options.genre ?? "Tự suy luận"}\nBối cảnh: ${options.setting ?? "Tự suy luận"}\nÝ tưởng: ${options.idea}\n${options.style ? `Phong cách: ${options.style}` : ""}`;
@@ -254,7 +254,7 @@ export async function generateCharacters(
   options: GenerateFrameworkOptions,
   worldContext: string,
 ): Promise<CharacterResult> {
-  const model = await getModelForRole(options.novelId, "direction");
+  const model = await getModelForRole(options.novelId, "outline");
   const globalInstruction = await getGlobalInstruction();
 
   const basePrompt = `Ý tưởng: ${options.idea}\n\nThế giới:\n${worldContext}`;
@@ -300,6 +300,27 @@ export async function generatePlotArcs(
 /**
  * Generate chapter plans from full context.
  */
+const RECENT_CHAPTER_RECAP_LIMIT = 10;
+
+function buildExistingChaptersRecap(chapters: Chapter[]): string {
+  if (chapters.length === 0) return "";
+  const sorted = [...chapters].sort((a, b) => a.order - b.order);
+  const recent = sorted.slice(-RECENT_CHAPTER_RECAP_LIMIT);
+  const omitted = sorted.length - recent.length;
+  const last = sorted[sorted.length - 1];
+  const lines = recent
+    .map(
+      (c) =>
+        `- Chương ${c.order}${c.title ? `: ${c.title}` : ""}${c.summary ? ` — ${c.summary}` : ""}`,
+    )
+    .join("\n");
+  return (
+    `Truyện đã có ${sorted.length} chương (đến chương ${last.order}). ` +
+    `Phải tiếp nối nhất quán với nội dung đã viết, KHÔNG bắt đầu lại từ đầu.\n` +
+    `${omitted > 0 ? `(đã lược ${omitted} chương đầu)\n` : ""}${lines}`
+  );
+}
+
 export async function generateChapterPlans(
   options: GenerateFrameworkOptions,
   context: string,
@@ -308,13 +329,21 @@ export async function generateChapterPlans(
   const model = await getModelForRole(options.novelId, "writer");
   const globalInstruction = await getGlobalInstruction();
 
-  const basePrompt = `Ý tưởng: ${options.idea}\n\n${context}`;
+  const existingChapters = await db.chapters
+    .where("novelId")
+    .equals(options.novelId)
+    .toArray();
+  const fromOrder = existingChapters.reduce((m, c) => Math.max(m, c.order), 0);
+
+  const recap = buildExistingChaptersRecap(existingChapters);
+  const fullContext = recap ? `${recap}\n\n${context}` : context;
+  const basePrompt = `Ý tưởng: ${options.idea}\n\n${fullContext}`;
 
   const { object } = await generateStructured<ChapterPlanResult>({
     model,
     schema: chapterPlanSchema,
     system: withGlobalInstruction(
-      options.systemPrompt ?? buildChapterPlanSystem(chapterCount),
+      options.systemPrompt ?? buildChapterPlanSystem(chapterCount, fromOrder),
       globalInstruction,
     ),
     prompt: appendUserInstructionToPrompt(basePrompt, options.userInstruction),
@@ -369,6 +398,47 @@ export async function saveCharacters(
   return entries.map((e) => e.id);
 }
 
+export function mapCandidateToRow(
+  novelId: string,
+  candidate: import("@/lib/writing/character-ai-schema").CharacterAIFields,
+  now: Date,
+) {
+  return {
+    id: crypto.randomUUID(),
+    novelId,
+    name: candidate.name,
+    role: candidate.role ?? "",
+    description: candidate.description ?? "",
+    age: candidate.age,
+    sex: candidate.sex,
+    appearance: candidate.appearance,
+    personality: candidate.personality,
+    hobbies: candidate.hobbies,
+    relationshipWithMC: candidate.relationshipWithMC,
+    characterArc: candidate.characterArc,
+    strengths: candidate.strengths,
+    weaknesses: candidate.weaknesses,
+    motivations: candidate.motivations,
+    goals: candidate.goals,
+    notes: "",
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/**
+ * Append generated characters without deleting existing ones.
+ */
+export async function saveCharactersAppend(
+  novelId: string,
+  candidates: import("@/lib/writing/character-ai-schema").CharacterAIFields[],
+) {
+  const now = new Date();
+  const entries = candidates.map((c) => mapCandidateToRow(novelId, c, now));
+  await db.characters.bulkAdd(entries);
+  return entries.map((e) => e.id);
+}
+
 /**
  * Save plot arcs result to PlotArc entities.
  */
@@ -414,10 +484,14 @@ export async function saveChapterPlans(
     await db.chapterPlans.where("novelId").equals(novelId).delete();
   }
   const now = new Date();
-  const entries = result.plans.map((plan) => ({
+  const startOrder = await getNextChapterOrder(novelId);
+  const sorted = [...result.plans].sort(
+    (a, b) => a.chapterOrder - b.chapterOrder,
+  );
+  const entries = sorted.map((plan, i) => ({
     id: crypto.randomUUID(),
     novelId,
-    chapterOrder: plan.chapterOrder,
+    chapterOrder: startOrder + i,
     title: plan.title,
     directions: plan.directions,
     outline: "",

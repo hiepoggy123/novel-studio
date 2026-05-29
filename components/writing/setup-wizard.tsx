@@ -15,6 +15,7 @@ import {
   getOrCreateWritingSettings,
   updateNovel,
   useChapterPlans,
+  useChapters,
   useCharacters,
   useNovel,
   usePlotArcs,
@@ -32,7 +33,7 @@ import {
   savePlotArcs,
   saveWorldBuilding,
 } from "@/lib/writing/auto-generate";
-import { createChapterPlan } from "@/lib/hooks/use-chapter-plans";
+import { createChapterPlan, getNextChapterOrder } from "@/lib/hooks/use-chapter-plans";
 import {
   BookOpenIcon,
   CheckCircle2Icon,
@@ -57,10 +58,11 @@ import {
   type SetupStep,
 } from "@/lib/writing/auto-generate-prompts";
 
-/** Model configs still reuse pipeline roles for model selection */
+const RECENT_CHAPTER_CONTEXT_LIMIT = 10;
+
 const SETUP_MODEL_ROLES: Record<SetupStep, WritingAgentRole> = {
-  world: "context",
-  characters: "direction",
+  world: "plan",
+  characters: "outline",
   arcs: "outline",
   plans: "writer",
 };
@@ -124,6 +126,7 @@ export function SetupWizard({
   const characters = useCharacters(novelId);
   const plotArcs = usePlotArcs(novelId);
   const chapterPlans = useChapterPlans(novelId);
+  const chapters = useChapters(novelId);
 
   const currentStepIndex = STEPS.findIndex((s) => s.key === currentStep);
   const stepDef = STEPS[currentStepIndex];
@@ -165,8 +168,24 @@ export function SetupWizard({
       parts.push(
         `Mạch truyện: ${plotArcs.map((a) => `${a.title} (${a.type}): ${a.description}`).join("\n")}`,
       );
+    if (chapters?.length) {
+      const sorted = [...chapters].sort((a, b) => a.order - b.order);
+      const recent = sorted.slice(-RECENT_CHAPTER_CONTEXT_LIMIT);
+      const omitted = sorted.length - recent.length;
+      const lines = recent
+        .map(
+          (c) =>
+            `- Chương ${c.order}${c.title ? `: ${c.title}` : ""}${c.summary ? ` — ${c.summary}` : ""}`,
+        )
+        .join("\n");
+      parts.push(
+        `Truyện đã có ${sorted.length} chương (đến chương ${sorted[sorted.length - 1].order}). ` +
+          `Phải tiếp nối nhất quán với nội dung đã viết, KHÔNG bắt đầu lại từ đầu.\n` +
+          `${omitted > 0 ? `(đã lược ${omitted} chương đầu)\n` : ""}${lines}`,
+      );
+    }
     return parts.join("\n\n");
-  }, [novel, characters, plotArcs]);
+  }, [novel, characters, plotArcs, chapters]);
 
   const handleGenerate = useCallback(async () => {
     setIsGenerating(true);
@@ -245,10 +264,11 @@ export function SetupWizard({
       .equals(novelId)
       .count();
     if (existing > 0) return; // already have plans
-    for (let i = 1; i <= 5; i++) {
+    const startOrder = await getNextChapterOrder(novelId);
+    for (let i = 0; i < 5; i++) {
       await createChapterPlan({
         novelId,
-        chapterOrder: i,
+        chapterOrder: startOrder + i,
         directions: [],
         outline: "",
         scenes: [],

@@ -7,15 +7,23 @@ export type ConfigItemId =
   | "chapter-translate"
   | "chapter-review"
   | "chapter-rewrite"
+  | "character-enhance"
+  | "character-generate"
   | "autowrite-setup"
   | "autowrite-world"
   | "autowrite-characters"
   | "autowrite-arcs"
   | "autowrite-plans"
-  | "autowrite-context"
-  | "autowrite-direction"
+  | "autowrite-plan"
   | "autowrite-outline"
   | "autowrite-writer"
+  | "autowrite-normalize"
+  | "autowrite-observe"
+  | "autowrite-audit"
+  | "autowrite-revise"
+  | "autowrite-polish"
+  | "autowrite-context"
+  | "autowrite-direction"
   | "autowrite-review"
   | "autowrite-rewrite";
 
@@ -59,6 +67,15 @@ export const TREE_STRUCTURE: TreeNode[] = [
   },
   {
     type: "folder",
+    id: "character-tools",
+    label: "Công cụ nhân vật",
+    children: [
+      { type: "leaf", id: "character-enhance", label: "Cải thiện hồ sơ" },
+      { type: "leaf", id: "character-generate", label: "Tạo nhân vật" },
+    ],
+  },
+  {
+    type: "folder",
     id: "autowrite",
     label: "Tự động viết",
     children: [
@@ -79,12 +96,14 @@ export const TREE_STRUCTURE: TreeNode[] = [
         id: "autowrite-pipeline-folder",
         label: "Pipeline",
         children: [
-          { type: "leaf", id: "autowrite-context", label: "Bối cảnh" },
-          { type: "leaf", id: "autowrite-direction", label: "Hướng đi" },
+          { type: "leaf", id: "autowrite-plan", label: "Kế hoạch" },
           { type: "leaf", id: "autowrite-outline", label: "Giàn ý" },
           { type: "leaf", id: "autowrite-writer", label: "Viết truyện" },
-          { type: "leaf", id: "autowrite-review", label: "Đánh giá" },
-          { type: "leaf", id: "autowrite-rewrite", label: "Viết lại" },
+          { type: "leaf", id: "autowrite-normalize", label: "Chuẩn hóa" },
+          { type: "leaf", id: "autowrite-observe", label: "Quan sát" },
+          { type: "leaf", id: "autowrite-audit", label: "Đánh giá" },
+          { type: "leaf", id: "autowrite-revise", label: "Viết lại" },
+          { type: "leaf", id: "autowrite-polish", label: "Tinh chỉnh" },
         ],
       },
     ],

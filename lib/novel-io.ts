@@ -9,6 +9,7 @@ import {
   type ReplaceRule,
   type ExcludedName,
   type SceneVersionType,
+  type StoryState,
 } from "@/lib/db";
 
 // ─── Export Format ──────────────────────────────────────────
@@ -24,41 +25,100 @@ export interface NovelExportData {
   nameEntries?: NameEntry[];
   replaceRules?: ReplaceRule[];
   excludedNames?: ExcludedName[];
+  storyState?: StoryState;
   /** @deprecated v1 only — analysis data is now on Novel */
   analyses?: unknown[];
 }
 
 // ─── Export ─────────────────────────────────────────────────
 
+export interface ExportSelection {
+  /** Chapters and their scenes. */
+  chapters: boolean;
+  /** Include historical scene versions (only when chapters is true). */
+  includeVersions: boolean;
+  characters: boolean;
+  notes: boolean;
+  /** QT data (name entries, replace rules, excluded names) + writing StoryState. */
+  qtAndState: boolean;
+  /** Worldbuilding / analysis fields on the Novel record. */
+  worldbuilding: boolean;
+}
+
+export const DEFAULT_EXPORT_SELECTION: ExportSelection = {
+  chapters: true,
+  includeVersions: false,
+  characters: true,
+  notes: true,
+  qtAndState: true,
+  worldbuilding: true,
+};
+
+const WORLDBUILDING_KEYS: (keyof Novel)[] = [
+  "genres",
+  "tags",
+  "synopsis",
+  "worldOverview",
+  "powerSystem",
+  "storySetting",
+  "timePeriod",
+  "factions",
+  "keyLocations",
+  "worldRules",
+  "technologyLevel",
+  "analysisStatus",
+  "chaptersAnalyzed",
+  "totalChapters",
+  "analysisError",
+  "reviewIssues",
+];
+
+function stripWorldbuilding(novel: Novel): Novel {
+  const clone = { ...novel };
+  for (const key of WORLDBUILDING_KEYS) delete clone[key];
+  return clone;
+}
+
 export async function exportNovel(
   novelId: string,
-  options?: { includeVersions?: boolean },
+  selection?: Partial<ExportSelection>,
 ): Promise<NovelExportData> {
+  const sel = { ...DEFAULT_EXPORT_SELECTION, ...selection };
   const novel = await db.novels.get(novelId);
   if (!novel) throw new Error("Novel not found");
 
-  const includeVersions = options?.includeVersions ?? false;
-
-  const [chapters, scenes, characters, notes, nameEntries, replaceRules, excludedNames] =
+  const [chapters, scenes, characters, notes, nameEntries, replaceRules, excludedNames, storyState] =
     await Promise.all([
-      db.chapters.where("novelId").equals(novelId).toArray(),
-      includeVersions
-        ? db.scenes.where("novelId").equals(novelId).toArray()
-        : db.scenes
-            .where("[novelId+isActive]")
-            .equals([novelId, 1])
-            .toArray(),
-      db.characters.where("novelId").equals(novelId).toArray(),
-      db.notes.where("novelId").equals(novelId).toArray(),
-      db.nameEntries.where("scope").equals(novelId).toArray(),
-      db.replaceRules.where("scope").equals(novelId).toArray(),
-      db.excludedNames.where("scope").equals(novelId).toArray(),
+      sel.chapters
+        ? db.chapters.where("novelId").equals(novelId).toArray()
+        : Promise.resolve([] as Chapter[]),
+      sel.chapters
+        ? sel.includeVersions
+          ? db.scenes.where("novelId").equals(novelId).toArray()
+          : db.scenes.where("[novelId+isActive]").equals([novelId, 1]).toArray()
+        : Promise.resolve([] as Scene[]),
+      sel.characters
+        ? db.characters.where("novelId").equals(novelId).toArray()
+        : Promise.resolve([] as Character[]),
+      sel.notes
+        ? db.notes.where("novelId").equals(novelId).toArray()
+        : Promise.resolve([] as Note[]),
+      sel.qtAndState
+        ? db.nameEntries.where("scope").equals(novelId).toArray()
+        : Promise.resolve([] as NameEntry[]),
+      sel.qtAndState
+        ? db.replaceRules.where("scope").equals(novelId).toArray()
+        : Promise.resolve([] as ReplaceRule[]),
+      sel.qtAndState
+        ? db.excludedNames.where("scope").equals(novelId).toArray()
+        : Promise.resolve([] as ExcludedName[]),
+      sel.qtAndState ? db.storyStates.get(novelId) : Promise.resolve(undefined),
     ]);
 
   return {
     version: 2,
     exportedAt: new Date().toISOString(),
-    novel,
+    novel: sel.worldbuilding ? novel : stripWorldbuilding(novel),
     chapters,
     scenes,
     characters,
@@ -66,6 +126,7 @@ export async function exportNovel(
     ...(nameEntries.length > 0 ? { nameEntries } : {}),
     ...(replaceRules.length > 0 ? { replaceRules } : {}),
     ...(excludedNames.length > 0 ? { excludedNames } : {}),
+    ...(storyState ? { storyState } : {}),
   };
 }
 
@@ -292,6 +353,15 @@ export async function importNovel(file: File): Promise<string> {
         updatedAt: new Date(entry.updatedAt),
       });
     }
+  }
+
+  // Story State (singleton keyed by novelId)
+  if (data.storyState) {
+    await db.storyStates.put({
+      ...data.storyState,
+      id: novelId,
+      updatedAt: new Date(data.storyState.updatedAt),
+    });
   }
 
   return novelId;
