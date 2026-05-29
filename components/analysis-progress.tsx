@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import type { IncrementalResultSummary } from "@/lib/analysis/incremental-analyzer";
 import type { PhaseResult } from "@/lib/stores/analysis";
 import { useAnalysisStore } from "@/lib/stores/analysis";

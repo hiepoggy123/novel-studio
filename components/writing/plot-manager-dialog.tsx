@@ -10,7 +10,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePlotArcs } from "@/lib/hooks/use-plot-arcs";
 import type { PlotProposal } from "@/lib/writing/plot-proposal-schema";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { PlotAiGeneratePanel } from "./plot-ai-generate-panel";
 import { PlotArcEditor } from "./plot-arc-editor";
 import { PlotArcList } from "./plot-arc-list";
@@ -31,17 +31,18 @@ export function PlotManagerDialog({
   const [editingArcId, setEditingArcId] = useState<string | null>(null);
   const [proposal, setProposal] = useState<PlotProposal | null>(null);
 
-  useEffect(() => {
-    if (!open) {
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
       setEditingArcId(null);
       setProposal(null);
     }
-  }, [open]);
+    onOpenChangeAction(next);
+  };
 
   const editingArc = arcs?.find((a) => a.id === editingArcId) ?? null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChangeAction}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-2xl p-0 gap-0">
         <DialogHeader className="px-6 py-4 border-b">
           <DialogTitle>Quản lý cốt truyện</DialogTitle>
