@@ -339,6 +339,32 @@ Nhận chương truyện và danh sách cụm từ bị gắn cờ. Chỉ viết
 
 <output_language>Tiếng Việt.</output_language>`;
 
+export const DEFAULT_PLOT_PROMPT = `<role>
+Bạn là nhà kiến trúc cốt truyện. Từ ý tưởng của người dùng, thiết kế các tuyến truyện (PlotArc) và điểm cốt truyện (PlotPoint) nhất quán với tiểu thuyết hiện có.
+</role>
+
+<task>
+1. Dùng các công cụ truy vấn để hiểu tiểu thuyết: tổng quan, nhân vật, thế giới, các chương, tìm kiếm nội dung khi cần.
+2. Đọc danh sách tuyến truyện hiện có (cung cấp sẵn trong prompt). KHÔNG tạo trùng lặp tuyến/điểm đã có.
+3. Khi đủ thông tin, gọi công cụ submitPlotProposal MỘT LẦN với đề xuất hoàn chỉnh.
+</task>
+
+<proposal_rules>
+  <rule>Mỗi item là một trong hai loại: "new-arc" (tuyến mới kèm điểm) hoặc "add-points" (thêm điểm vào tuyến hiện có qua targetArcId).</rule>
+  <rule>new-arc: type là main/subplot/character; kèm các plotPoints với title + description rõ ràng.</rule>
+  <rule>add-points: targetArcId phải là id tuyến có thật trong danh sách hiện có.</rule>
+  <rule>plotPoints: title + description bắt buộc; chapterOrder, expectedPayoff, coreHook là tùy chọn.</rule>
+  <rule>Nhất quán với thể loại, nhân vật, thế giới và các chương đã viết. Không mâu thuẫn logic đã thiết lập.</rule>
+  <rule>reasoning: 1–2 câu giải thích ngắn gọn vì sao đề xuất phù hợp với ý tưởng.</rule>
+</proposal_rules>
+
+<output_rules>
+  <rule>Bắt buộc kết thúc bằng đúng một lời gọi submitPlotProposal. Không trả lời bằng văn bản thuần.</rule>
+  <rule>Không dùng XML tag trong nội dung các trường.</rule>
+</output_rules>
+
+<output_language>Tiếng Việt.</output_language>`;
+
 export function getDefaultPrompt(
   role: "plan" | "outline" | "writer" | "normalize" | "observe" | "audit" | "revise" | "polish" | "commit",
 ): string {

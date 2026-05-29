@@ -50,6 +50,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { GenerateCharactersDialog } from "@/components/novel/generate-characters-dialog";
 import { EditChapterPlanDialog } from "@/components/writing/edit-chapter-plan-dialog";
+import { PlotManagerDialog } from "@/components/writing/plot-manager-dialog";
 import { GenerateMorePlansDialog } from "@/components/writing/generate-more-plans-dialog";
 import { IdeaForm, type IdeaFormData } from "@/components/writing/idea-form";
 import { NovelSetup } from "@/components/writing/novel-setup";
@@ -130,6 +131,7 @@ export default function AutoWritePage() {
   const [generateMorePlansOpen, setGenerateMorePlansOpen] = useState(false);
   const [generateCharsOpen, setGenerateCharsOpen] = useState(false);
   const [editPlanId, setEditPlanId] = useState<string | null>(null);
+  const [plotManagerOpen, setPlotManagerOpen] = useState(false);
 
   const hasWorld = !!(novel?.worldOverview || novel?.factions?.length);
   const hasCharacters = (characters?.length ?? 0) > 0;
@@ -423,6 +425,7 @@ export default function AutoWritePage() {
               onRetry={() => void controls.handleStartPipeline()}
               onStepClick={(role) => handleTabChange(STEP_PANEL_MAP[role])}
               onGenerateMore={() => setGenerateMorePlansOpen(true)}
+              onManagePlot={() => setPlotManagerOpen(true)}
               onAddBlank={async () => {
                 const nextOrder = await getNextChapterOrder(novelId);
                 await createChapterPlan({
@@ -605,6 +608,12 @@ export default function AutoWritePage() {
           await controls.runGenerateMorePlans(instruction);
         }}
         isLoading={controls.isGeneratingPlans}
+      />
+
+      <PlotManagerDialog
+        novelId={novelId}
+        open={plotManagerOpen}
+        onOpenChangeAction={setPlotManagerOpen}
       />
 
       <EditChapterPlanDialog

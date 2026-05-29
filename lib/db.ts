@@ -509,6 +509,8 @@ export interface WritingSettings {
   auditModel?: StepModelConfig;
   reviseModel?: StepModelConfig;
   polishModel?: StepModelConfig;
+  /** Model for the standalone AI plot-creation agent (not a pipeline role). */
+  plotModel?: StepModelConfig;
   enablePolish?: boolean;
   styleFingerprint?: string;
   planPrompt?: string;
@@ -519,6 +521,8 @@ export interface WritingSettings {
   auditPrompt?: string;
   revisePrompt?: string;
   polishPrompt?: string;
+  /** System prompt for the standalone AI plot-creation agent. */
+  plotPrompt?: string;
   // Setup wizard step prompts (auto-generate framework)
   worldBuildingPrompt?: string;
   characterGenPrompt?: string;

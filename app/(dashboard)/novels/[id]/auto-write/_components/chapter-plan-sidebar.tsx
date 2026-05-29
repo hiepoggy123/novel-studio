@@ -3,7 +3,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PipelineProgress } from "@/components/writing/pipeline-progress";
 import type { ChapterPlan, WritingAgentRole } from "@/lib/db";
-import { PencilIcon } from "lucide-react";
+import { NetworkIcon, PencilIcon } from "lucide-react";
 import { StaleChapterIndicator } from "./stale-chapter-indicator";
 
 const STATUS_STYLE: Record<ChapterPlan["status"], string> = {
@@ -36,6 +36,7 @@ interface ChapterPlanSidebarProps {
   onStepClick: (role: WritingAgentRole) => void;
   onGenerateMore: () => void;
   onAddBlank: () => void;
+  onManagePlot: () => void;
 }
 
 export function ChapterPlanSidebar({
@@ -52,6 +53,7 @@ export function ChapterPlanSidebar({
   onStepClick,
   onGenerateMore,
   onAddBlank,
+  onManagePlot,
 }: ChapterPlanSidebarProps) {
   return (
     <div className="flex h-full flex-col border-r">
@@ -63,6 +65,14 @@ export function ChapterPlanSidebar({
           onRetryAction={onRetry}
           onStepClick={onStepClick}
         />
+        <button
+          type="button"
+          onClick={onManagePlot}
+          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
+        >
+          <NetworkIcon className="h-3.5 w-3.5" />
+          Quản lý cốt truyện
+        </button>
       </div>
 
       <ScrollArea className="flex-1 border-t p-3 min-h-0">
