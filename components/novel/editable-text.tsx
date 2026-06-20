@@ -3,14 +3,18 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { CheckIcon, PencilLineIcon, XIcon } from "lucide-react";
 import { useState } from "react";
+import { Streamdown } from "streamdown";
+import "streamdown/styles.css";
 
 export function EditableText({
   value,
   onSave,
   placeholder = "Nhấn để chỉnh sửa...",
   multiline = false,
+  markdown = false,
   className = "",
   displayClassName = "",
 }: {
@@ -18,6 +22,7 @@ export function EditableText({
   onSave: (value: string) => void;
   placeholder?: string;
   multiline?: boolean;
+  markdown?: boolean;
   className?: string;
   displayClassName?: string;
 }) {
@@ -71,15 +76,21 @@ export function EditableText({
       className={`group flex cursor-pointer items-start gap-1.5 ${className}`}
       onClick={() => setEditing(true)}
     >
-      <span
-        className={
-          value
-            ? displayClassName
-            : `${displayClassName} text-muted-foreground italic`
-        }
-      >
-        {value || placeholder}
-      </span>
+      {!markdown ? (
+        <div
+          className={cn(
+            "flex-1 text-sm",
+            multiline ? "whitespace-pre-wrap" : "truncate",
+            value
+              ? displayClassName
+              : `${displayClassName} text-muted-foreground italic`,
+          )}
+        >
+          {value || placeholder}
+        </div>
+      ) : (
+        <Streamdown mode="streaming">{value || placeholder}</Streamdown>
+      )}
       <PencilLineIcon className="mt-1.25 size-3 shrink-0 opacity-0 transition-opacity group-hover:opacity-40" />
     </div>
   );

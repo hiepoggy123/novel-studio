@@ -42,6 +42,7 @@ export async function deleteNovel(id: string) {
       db.plotArcs, db.chapterPlans,
       db.writingSettings, db.writingSessions, db.writingStepResults,
       db.storyStates,
+      db.continuityFindings, db.continuityObservations,
     ],
     async () => {
       await db.scenes.where("novelId").equals(id).delete();
@@ -60,6 +61,8 @@ export async function deleteNovel(id: string) {
       }
       await db.writingSessions.where("novelId").equals(id).delete();
       await db.storyStates.delete(id);
+      await db.continuityFindings.where("novelId").equals(id).delete();
+      await db.continuityObservations.where("novelId").equals(id).delete();
       await db.novels.delete(id);
     },
   );

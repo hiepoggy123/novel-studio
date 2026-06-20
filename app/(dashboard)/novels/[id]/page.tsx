@@ -7,6 +7,7 @@ import { BulkConvertDialog } from "@/components/novel/bulk-convert-dialog";
 import { BulkReplaceDialog } from "@/components/novel/bulk-replace-dialog";
 import { ChaptersTab } from "@/components/novel/chapters-tab";
 import { CharactersTab } from "@/components/novel/characters-tab";
+import { ContinuityTab } from "@/components/novel/continuity-tab";
 import { EditableText } from "@/components/novel/editable-text";
 import { WorldBuildingTab } from "@/components/novel/world-building-tab";
 import {
@@ -44,6 +45,7 @@ import {
   GlobeIcon,
   PencilIcon,
   ScrollTextIcon,
+  ShieldCheckIcon,
   SparklesIcon,
   Trash2Icon,
   UsersIcon,
@@ -361,6 +363,13 @@ export default function NovelDetailPage() {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger
+            value="continuity"
+            className="gap-1.5 px-2 py-1.5 sm:gap-2 sm:px-3"
+          >
+            <ShieldCheckIcon className="size-3.5 text-rose-600 dark:text-rose-400" />
+            <span className="hidden sm:inline">Nhất quán</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="world-building" className="mt-4">
@@ -382,6 +391,10 @@ export default function NovelDetailPage() {
             onReplace={handleReplace}
             onConvert={handleConvert}
           />
+        </TabsContent>
+
+        <TabsContent value="continuity" className="mt-4">
+          <ContinuityTab novelId={id} />
         </TabsContent>
       </Tabs>
 

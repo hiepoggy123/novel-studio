@@ -21,3 +21,4 @@ export * from "./use-writing-settings";
 export * from "./use-writing-sessions";
 export * from "./use-writing-step-results";
 export * from "./use-story-state";
+export * from "./use-continuity-findings";

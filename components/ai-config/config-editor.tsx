@@ -346,6 +346,17 @@ const CHAPTER_TOOL_CONFIG: Record<string, FieldConfig> = {
   },
 };
 
+const CONTINUITY_CONFIG: Record<string, FieldConfig> = {
+  continuity: {
+    title: "Kiểm tra nhất quán",
+    description:
+      "Quét truyện để phát hiện mâu thuẫn (dữ kiện, trạng thái nhân vật, mạch truyện bỏ lửng, tên dịch lệch). Mô hình và chỉ thị này dùng cho bước quan sát/trích xuất dữ kiện khi quét. Nếu chưa chọn mô hình, hệ thống dùng mô hình 'Phân tích chương'.",
+    modelKey: "continuityModel",
+    promptKey: "continuityPrompt",
+    defaultPrompt: getDefaultPrompt("observe"),
+  },
+};
+
 const CHARACTER_TOOL_CONFIG: Record<string, FieldConfig> = {
   "character-enhance": {
     title: "Cải thiện hồ sơ",
@@ -459,7 +470,10 @@ function ChapterToolEditor({ item }: { item: ConfigItemId }) {
   const settings = useAnalysisSettings();
   const { saved, show } = useSaveIndicator();
 
-  const config = CHAPTER_TOOL_CONFIG[item] ?? CHARACTER_TOOL_CONFIG[item];
+  const config =
+    CHAPTER_TOOL_CONFIG[item] ??
+    CHARACTER_TOOL_CONFIG[item] ??
+    CONTINUITY_CONFIG[item];
   const defaultPrompt = config?.defaultPrompt ?? "";
   const customPrompt = config
     ? (settings[config.promptKey as keyof typeof settings] as
@@ -969,6 +983,7 @@ export function ConfigEditor({ item }: { item: ConfigItemId }) {
       case "chapter-rewrite":
       case "character-enhance":
       case "character-generate":
+      case "continuity":
         return <ChapterToolEditor item={item} />;
       case "autowrite-setup":
         return <AutowriteSetupEditor />;

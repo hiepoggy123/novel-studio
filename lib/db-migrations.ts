@@ -324,4 +324,9 @@ export function registerMigrations(db: NovelStudioDB) {
         }
       }
     });
+
+  db.version(16).stores({
+    continuityFindings: "id, novelId, signature, [novelId+status], [novelId+type]",
+    continuityObservations: "id, novelId",
+  });
 }

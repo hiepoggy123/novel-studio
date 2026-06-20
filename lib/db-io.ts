@@ -25,7 +25,7 @@ import {
 // ─── Constants ──────────────────────────────────────────────
 
 const CURRENT_EXPORT_VERSION = 1;
-export const CURRENT_DB_VERSION = 15;
+export const CURRENT_DB_VERSION = 16;
 
 const NOVEL_SCOPED_TABLES = [
   "novels",
@@ -43,6 +43,7 @@ const NOVEL_SCOPED_TABLES = [
   "writingSessions",
   "writingStepResults",
   "storyStates",
+  "continuityFindings",
 ] as const;
 
 const AI_TABLES = [
@@ -78,6 +79,7 @@ const IMPORT_ORDER = [
   "writingSessions",
   "writingStepResults",
   "storyStates",
+  "continuityFindings",
   "dictMeta",
   "dictCache",
   "dictEntries",
@@ -116,6 +118,7 @@ export const TABLE_LABELS: Record<string, string> = {
   writingSessions: "Phiên viết",
   writingStepResults: "Kết quả bước viết",
   storyStates: "Trạng thái cốt truyện",
+  continuityFindings: "Phát hiện nhất quán",
 };
 
 // Date fields per table for reviving from JSON
@@ -142,6 +145,7 @@ const DATE_FIELDS: Record<string, string[]> = {
   writingSessions: ["createdAt", "updatedAt"],
   writingStepResults: ["startedAt", "completedAt"],
   storyStates: ["updatedAt"],
+  continuityFindings: ["createdAt", "updatedAt"],
 };
 
 // FK fields that need remapping in "keep-both" mode
@@ -157,6 +161,7 @@ const FK_FIELDS: Record<string, Record<string, string>> = {
   plotArcs: { novelId: "novels" },
   chapterPlans: { novelId: "novels", chapterId: "chapters" },
   storyStates: { id: "novels" },
+  continuityFindings: { novelId: "novels" },
   writingSessions: { novelId: "novels", chapterPlanId: "chapterPlans" },
   writingStepResults: { sessionId: "writingSessions" },
   aiModels: { providerId: "aiProviders" },

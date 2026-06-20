@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from "dexie";
 import { registerMigrations } from "./db-migrations";
+import type { StateDelta } from "@/lib/writing/state/schemas";
 
 // ─── Entity Types ────────────────────────────────────────────
 
@@ -239,6 +240,9 @@ export interface AnalysisSettings {
   characterGenerateModel?: StepModelConfig;
   characterEnhancePrompt?: string;
   characterGeneratePrompt?: string;
+  // Continuity Guard
+  continuityModel?: StepModelConfig;
+  continuityPrompt?: string;
 }
 
 // ─── Name Dictionary ─────────────────────────────────────────
@@ -554,6 +558,52 @@ export interface WritingStepResult {
   completedAt?: Date;
 }
 
+// ─── Continuity Guard ───────────────────────────────────────
+
+export type ContinuityFindingType =
+  | "fact-conflict"
+  | "character-state"
+  | "abandoned-conflict"
+  | "name-inconsistency";
+
+export type ContinuityFindingSeverity = "high" | "medium" | "low";
+
+export type ContinuityFindingStatus = "open" | "dismissed" | "resolved";
+
+export interface ContinuityEvidence {
+  chapterOrder: number;
+  chapterId?: string;
+  quote: string;
+}
+
+export interface ContinuityFinding {
+  id: string;
+  novelId: string;
+  type: ContinuityFindingType;
+  severity: ContinuityFindingSeverity;
+  /** 0..1; deterministic findings = 1 */
+  confidence: number;
+  title: string;
+  description: string;
+  evidence: ContinuityEvidence[];
+  status: ContinuityFindingStatus;
+  /** stable dedupe key — survives re-scan so dismiss/resolve persist */
+  signature: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** Per-chapter observation cache for incremental re-scan. id === `${novelId}:${chapterOrder}`. */
+export interface ContinuityObservation {
+  id: string;
+  novelId: string;
+  chapterOrder: number;
+  chapterId: string;
+  contentHash: string;
+  delta: StateDelta;
+  updatedAt: Date;
+}
+
 // ─── Database ────────────────────────────────────────────────
 
 export class NovelStudioDB extends Dexie {
@@ -583,6 +633,8 @@ export class NovelStudioDB extends Dexie {
   writingSessions!: EntityTable<WritingSession, "id">;
   writingStepResults!: EntityTable<WritingStepResult, "id">;
   storyStates!: EntityTable<StoryState, "id">;
+  continuityFindings!: EntityTable<ContinuityFinding, "id">;
+  continuityObservations!: EntityTable<ContinuityObservation, "id">;
 
   constructor() {
     super("novel-studio");

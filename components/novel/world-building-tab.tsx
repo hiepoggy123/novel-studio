@@ -25,12 +25,21 @@ import { FactionEditDialog } from "./faction-edit-dialog";
 
 const SECTION_THEMES = {
   worldOverview: { icon: GlobeIcon, color: "text-blue-600 dark:text-blue-400" },
-  storySetting: { icon: MapPinIcon, color: "text-emerald-600 dark:text-emerald-400" },
-  timePeriod: { icon: CalendarIcon, color: "text-amber-600 dark:text-amber-400" },
+  storySetting: {
+    icon: MapPinIcon,
+    color: "text-emerald-600 dark:text-emerald-400",
+  },
+  timePeriod: {
+    icon: CalendarIcon,
+    color: "text-amber-600 dark:text-amber-400",
+  },
   powerSystem: { icon: SwordsIcon, color: "text-red-600 dark:text-red-400" },
   factions: { icon: ShieldIcon, color: "text-violet-600 dark:text-violet-400" },
   locations: { icon: MapPinIcon, color: "text-cyan-600 dark:text-cyan-400" },
-  worldRules: { icon: ScrollTextIcon, color: "text-orange-600 dark:text-orange-400" },
+  worldRules: {
+    icon: ScrollTextIcon,
+    color: "text-orange-600 dark:text-orange-400",
+  },
   technologyLevel: { icon: CpuIcon, color: "text-pink-600 dark:text-pink-400" },
 } as const;
 
@@ -166,11 +175,7 @@ function ItemList({
 
 // ─── Main tab ───────────────────────────────────────────────
 
-export function WorldBuildingTab({
-  novel,
-}: {
-  novel: Novel;
-}) {
+export function WorldBuildingTab({ novel }: { novel: Novel }) {
   const save = (field: string, value: unknown) => {
     updateNovel(novel.id, { [field]: value });
   };
@@ -199,12 +204,11 @@ export function WorldBuildingTab({
           </p>
         </div>
         <EditableText
-          value={
-            (typeof novel[field] === "string" ? novel[field] : "") ?? ""
-          }
+          value={(typeof novel[field] === "string" ? novel[field] : "") ?? ""}
           onSave={(v) => save(field, v || undefined)}
           placeholder={`Chưa có ${label.toLowerCase()}...`}
           multiline={multi}
+          markdown
           displayClassName="text-sm leading-relaxed"
         />
       </div>
@@ -237,46 +241,34 @@ export function WorldBuildingTab({
               key={i}
               className={cn(
                 "size-1.5 rounded-full",
-                i < filledCount
-                  ? "bg-primary/60"
-                  : "bg-muted-foreground/20",
+                i < filledCount ? "bg-primary/60" : "bg-muted-foreground/20",
               )}
             />
           ))}
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        {/* Full-width sections */}
-        <div className="sm:col-span-2">
-          {section("worldOverview", "Tổng quan thế giới", "worldOverview")}
-        </div>
+      <div className="space-y-3">
+        {section("worldOverview", "Tổng quan thế giới", "worldOverview")}
 
         {section("storySetting", "Bối cảnh câu chuyện", "storySetting")}
-        {section("timePeriod", "Thời kỳ", "timePeriod", false)}
+        {section("timePeriod", "Thời kỳ", "timePeriod")}
 
-        <div className="sm:col-span-2">
-          {section("powerSystem", "Hệ thống sức mạnh", "powerSystem")}
-        </div>
+        {section("powerSystem", "Hệ thống sức mạnh", "powerSystem")}
 
-        {/* Lists — full width */}
-        <div className="sm:col-span-2">
-          <ItemList
-            items={novel.factions ?? []}
-            type="faction"
-            onUpdate={(v) => save("factions", v)}
-          />
-        </div>
-        <div className="sm:col-span-2">
-          <ItemList
-            items={novel.keyLocations ?? []}
-            type="location"
-            onUpdate={(v) => save("keyLocations", v)}
-          />
-        </div>
+        <ItemList
+          items={novel.factions ?? []}
+          type="faction"
+          onUpdate={(v) => save("factions", v)}
+        />
+        <ItemList
+          items={novel.keyLocations ?? []}
+          type="location"
+          onUpdate={(v) => save("keyLocations", v)}
+        />
 
         {section("worldRules", "Quy luật thế giới", "worldRules")}
-        {section("technologyLevel", "Trình độ công nghệ", "technologyLevel", false)}
+        {section("technologyLevel", "Trình độ công nghệ", "technologyLevel")}
       </div>
     </div>
   );

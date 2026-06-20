@@ -4,6 +4,7 @@ export type ConfigItemId =
   | "analysis-chapter"
   | "analysis-aggregation"
   | "analysis-character"
+  | "continuity"
   | "chapter-translate"
   | "chapter-review"
   | "chapter-rewrite"
@@ -55,6 +56,7 @@ export const TREE_STRUCTURE: TreeNode[] = [
       { type: "leaf", id: "analysis-character", label: "Hồ sơ nhân vật" },
     ],
   },
+  { type: "leaf", id: "continuity", label: "Kiểm tra nhất quán" },
   {
     type: "folder",
     id: "chapter-tools",
