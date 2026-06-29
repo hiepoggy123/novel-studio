@@ -9,8 +9,10 @@ export interface SiteAdapter {
   chapterWaitSelector?: string;
   /** CSS selector to click after page load to trigger content loading */
   chapterClickSelector?: string;
-  /** Parse novel page HTML → novel info + chapter list */
-  getNovelInfo(html: string, url: string): NovelInfo;
+  /** Parse novel page HTML → novel info + chapter list. apiText is the optional in-page API response (see getChapterListApiUrl). */
+  getNovelInfo(html: string, url: string, apiText?: string): NovelInfo;
+  /** Optional: same-origin API URL the extension should fetch in-page (e.g. a JS-only chapter-list endpoint). */
+  getChapterListApiUrl?(url: string): string | null;
   /** Parse chapter page HTML → chapter content. contentText is innerText from live DOM (bypasses font obfuscation). */
   getChapterContent(html: string, url: string, contentText?: string): ChapterContent;
 }

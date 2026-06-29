@@ -132,8 +132,14 @@ export const useScraperStore = create<ScraperState>((set, get) => ({
 
     set({ isLoading: true, error: null, debugLogs: [] });
     try {
-      const { html, timedOut } = await extensionFetch(url);
-      const novelInfo = adapter.getNovelInfo(html, url);
+      const apiUrl = adapter.getChapterListApiUrl?.(url) ?? undefined;
+      const { html, timedOut, apiText } = await extensionFetch(
+        url,
+        undefined,
+        undefined,
+        apiUrl,
+      );
+      const novelInfo = adapter.getNovelInfo(html, url, apiText);
 
       addLog("Scrape · index", {
         ok: true,

@@ -13,6 +13,7 @@ chrome.runtime.onMessageExternal.addListener(
         request.waitSelector,
         request.clickSelector,
         request.timeout || 10000,
+        request.apiUrl,
       )
         .then((result) => sendResponse({ ok: true, ...result }))
         .catch((err) => sendResponse({ ok: false, error: err.message }));
@@ -24,7 +25,7 @@ chrome.runtime.onMessageExternal.addListener(
   },
 );
 
-async function handleFetch(url, waitSelector, clickSelector, timeout) {
+async function handleFetch(url, waitSelector, clickSelector, timeout, apiUrl) {
   const logs = [];
   const log = (msg) => { logs.push(`[${new Date().toLocaleTimeString()}] ${msg}`); };
 
@@ -76,8 +77,27 @@ async function handleFetch(url, waitSelector, clickSelector, timeout) {
     const data = results?.[0]?.result;
     if (!data) throw new Error("Failed to extract page content");
 
+    let apiText = null;
+    if (apiUrl) {
+      try {
+        const apiResults = await chrome.scripting.executeScript({
+          target: { tabId },
+          args: [apiUrl],
+          func: async (u) => {
+            const r = await fetch(u, { credentials: "include" });
+            return { ok: r.ok, status: r.status, text: await r.text() };
+          },
+        });
+        const a = apiResults?.[0]?.result;
+        apiText = a?.ok ? a.text : null;
+        log(`apiFetch: ${apiUrl.slice(0, 60)} → ${a?.status ?? "err"} len=${a?.text?.length ?? 0}`);
+      } catch (err) {
+        log(`apiFetch error: ${err.message}`);
+      }
+    }
+
     log(`extracted: html=${data.html.length} contentText=${data.contentText?.length ?? 0}${timedOut ? " (TIMEOUT)" : ""}`);
-    return { html: data.html, contentText: data.contentText, timedOut, logs };
+    return { html: data.html, contentText: data.contentText, timedOut, logs, apiText };
   } catch (err) {
     log(`error: ${err.message}`);
     throw Object.assign(err, { logs });

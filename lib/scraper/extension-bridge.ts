@@ -37,6 +37,7 @@ interface ExtensionResponse {
   logs?: string[];
   error?: string;
   version?: string;
+  apiText?: string;
 }
 
 function getChromeRuntime(): {
@@ -90,15 +91,17 @@ export interface FetchResult {
   contentText?: string;
   timedOut?: boolean;
   logs?: string[];
+  apiText?: string;
 }
 
 export async function extensionFetch(
   url: string,
   waitSelector?: string,
   clickSelector?: string,
+  apiUrl?: string,
 ): Promise<FetchResult> {
   const timeout = getScrapeTimeout();
-  const response = await sendMessage({ type: "FETCH", url, waitSelector, clickSelector, timeout });
+  const response = await sendMessage({ type: "FETCH", url, waitSelector, clickSelector, timeout, apiUrl });
   if (!response.ok) {
     throw new Error(response.error ?? "Extension fetch failed");
   }
@@ -107,6 +110,7 @@ export async function extensionFetch(
     contentText: response.contentText ?? undefined,
     timedOut: response.timedOut ?? false,
     logs: response.logs,
+    apiText: response.apiText ?? undefined,
   };
 }
 

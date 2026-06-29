@@ -1,4 +1,4 @@
-import type { SiteAdapter } from "../types";
+import type { ChapterLink, SiteAdapter } from "../types";
 
 /**
  * Adapter for stv
@@ -18,7 +18,13 @@ export const STVAdapter: SiteAdapter = {
   chapterWaitSelector: "#content-container .contentbox",
   chapterClickSelector: "#content-container .contentbox",
 
-  getNovelInfo(html, url) {
+  getChapterListApiUrl(url) {
+    const p = parseStvUrl(url);
+    if (!p) return null;
+    return `${p.origin}/index.php?ngmar=chapterlist&h=${p.host}&bookid=${p.bookid}&sajax=getchapterlist`;
+  },
+
+  getNovelInfo(html, url, apiText) {
     const doc = new DOMParser().parseFromString(html, "text/html");
 
     // Extract bookinfo from <script> tag
@@ -48,15 +54,7 @@ export const STVAdapter: SiteAdapter = {
           .body.textContent?.trim() || undefined
       : undefined;
 
-    // Extract chapter list by class — all chapter links have class "listchapitem"
-    // URL uses 1-based sequential DOM position (not the number in the title)
-    const baseUrl = extractBaseUrl(url);
-    const allLinks = doc.querySelectorAll("a.listchapitem");
-    const chapters = [...allLinks].map((el, i) => ({
-      title: el.textContent?.trim() ?? `Chương ${i + 1}`,
-      url: `${baseUrl}${i + 1}/`,
-      order: i,
-    }));
+    const chapters = apiText ? parseChapterList(apiText, url) : [];
 
     return { title, author, description, coverImage, chapters };
   },
@@ -118,11 +116,41 @@ function extractBookInfo(html: string): BookInfo | null {
   }
 }
 
-/**
- * Extract base URL for chapter construction.
- * (ensures trailing slash)
- */
-function extractBaseUrl(url: string): string {
-  const u = url.endsWith("/") ? url : url + "/";
-  return u;
+function parseStvUrl(
+  url: string,
+): { origin: string; host: string; bookid: string } | null {
+  try {
+    const u = new URL(url);
+    const m = u.pathname.match(/\/truyen\/([^/]+)\/\d+\/(\d+)/);
+    if (!m) return null;
+    return { origin: u.origin, host: m[1], bookid: m[2] };
+  } catch {
+    return null;
+  }
+}
+
+function parseChapterList(apiText: string, url: string): ChapterLink[] {
+  const p = parseStvUrl(url);
+  if (!p) return [];
+  let data: string | undefined;
+  try {
+    data = JSON.parse(apiText).data;
+  } catch {
+    return [];
+  }
+  if (!data) return [];
+  return data
+    .split("-//-")
+    .map((rec, i) => {
+      const [type, id, rawTitle] = rec.split("-/-");
+      const title = (rawTitle ?? "")
+        .trim()
+        .replace(/^Thứ\s+([\d,]+)\s+chương/i, "Chương $1:");
+      return {
+        title: title || `Chương ${i + 1}`,
+        url: `${p.origin}/truyen/${p.host}/${type}/${p.bookid}/${id}/`,
+        order: i,
+      };
+    })
+    .filter((c) => /\/\d+\/$/.test(c.url));
 }

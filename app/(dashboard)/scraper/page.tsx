@@ -62,6 +62,7 @@ import {
   SquareIcon,
   TerminalIcon,
   Trash2Icon,
+  UnplugIcon,
   XIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -450,6 +451,12 @@ function UrlStep() {
     checkExtension();
   };
 
+  const handleDisconnect = () => {
+    setExtensionId("");
+    setExtId("");
+    checkExtension();
+  };
+
   const handleTimeoutChange = (val: string) => {
     setTimeout_(parseInt(val, 10) || 0);
   };
@@ -487,18 +494,29 @@ function UrlStep() {
                   </Badge>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span>Timeout:</span>
-                <Input
-                  type="number"
-                  value={timeout}
-                  onChange={(e) => handleTimeoutChange(e.target.value)}
-                  onBlur={handleTimeoutBlur}
-                  className="h-6 w-14 text-center text-xs"
-                  min={5}
-                  max={60}
-                />
-                <span>s</span>
+              <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <span>Timeout:</span>
+                  <Input
+                    type="number"
+                    value={timeout}
+                    onChange={(e) => handleTimeoutChange(e.target.value)}
+                    onBlur={handleTimeoutBlur}
+                    className="h-6 w-14 text-center text-xs"
+                    min={5}
+                    max={60}
+                  />
+                  <span>s</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDisconnect}
+                  className="h-6 gap-1 px-2 text-xs text-muted-foreground hover:text-destructive"
+                >
+                  <UnplugIcon className="size-3" />
+                  Ngắt
+                </Button>
               </div>
             </div>
             {isVersionOutdated(
